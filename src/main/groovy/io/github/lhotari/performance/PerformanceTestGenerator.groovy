@@ -57,6 +57,23 @@ class PerformanceTestGenerator {
                             subprojects { project ->
                                 configurations {
                                     all {
+${
+                                            excludedRules.collect {
+                                                def parts = []
+                                                if(it.group) {
+                                                    parts << "group: '${it.group}'"
+                                                }
+                                                if(it.module) {
+                                                    parts << "module: '${it.module}'"
+                                                }
+                                                if(parts) {
+                                                    "                                        exclude ${parts.join(', ')}"
+                                                } else {
+                                                    ''
+                                                }
+                                            }.join('\n')
+                                        }
+
                                         resolutionStrategy {
                                             force ${forcedModules.collect{ "'${gavMapper.mapGAVToString(it)}'" }.join(', ')}
                                         }
