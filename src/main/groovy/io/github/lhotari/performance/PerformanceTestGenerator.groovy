@@ -83,38 +83,30 @@ class PerformanceTestGenerator {
         def forcedModules = findElementWithMostElements(allForcedModules)
 
         def rootBuildFile = new File(outputDir, 'build.gradle')
-        rootBuildFile.text = """
-                            apply plugin:'java'
-
-                            subprojects { project ->
-                                configurations {
-                                    all {
-${
-                                            excludedRules.collect {
-                                                def parts = []
-                                                if(it.group) {
-                                                    parts << "group: '${it.group}'"
-                                                }
-                                                if(it.module) {
-                                                    parts << "module: '${it.module}'"
-                                                }
-                                                if(parts) {
-                                                    "                                        exclude ${parts.join(', ')}"
-                                                } else {
-                                                    ''
-                                                }
-                                            }.join('\n')
-                                        }
-
-                                        resolutionStrategy {
-                                            force ${forcedModules.collect{ "'${gavMapper.mapGAVToString(it)}'" }.join(', ')}
-                                        }
-                                    }
-                                }
-                            }
-                            """.stripIndent()
-
-
+        rootBuildFile.withPrintWriter { output ->
+            output.println("plugin:'java'")
+            output.println("subprojects { project ->")
+            output.println("    configurations {")
+            output.println("        all {")
+            excludedRules.each {
+                def parts = []
+                if(it.group) {
+                    parts << "group: '${it.group}'"
+                }
+                if(it.module) {
+                    parts << "module: '${it.module}'"
+                }
+                if(parts) {
+                    output.println("            exclude ${parts.join(', ')}")
+                }
+            }
+            output.println("            resolutionStrategy {")
+            output.println("                force ${forcedModules.collect { "'${gavMapper.mapGAVToString(it)}'" }.join(', ')}")
+            output.println("            }")
+            output.println("        }")
+            output.println("    }")
+            output.println("}")
+        }
     }
 
     static class GavMapper {
