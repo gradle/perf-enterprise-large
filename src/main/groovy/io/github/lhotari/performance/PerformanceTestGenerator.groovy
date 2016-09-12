@@ -17,24 +17,56 @@ class PerformanceTestGenerator {
         def allExcludedRules = [] as Set
         def allForcedModules = [] as Set
 
+        def allConfigurations = [:]
+
         json.projects.each { project ->
             if(project.name != 'project_root') {
                 projectNames << project.name
                 println project.name
                 File projectDir = new File(outputDir, project.name)
                 projectDir.mkdir()
-                File buildFile = new File(projectDir, "build.gradle")
-                buildFile.text = """
-                            apply plugin:'java'
 
-                            """.stripIndent()
+                def dependencies = [:]
 
                 project.configurations.each { configuration ->
+                    if(!allConfigurations.containsKey(configuration.name)) {
+                        allConfigurations.put(configuration.name, configuration)
+                    }
+
                     if(configuration.excludeRules) {
                         allExcludedRules << convertToListOfMaps(configuration.excludeRules)
                     }
                     if(configuration.resolutionStrategy?.forcedModules) {
                         allForcedModules << convertToListOfMaps(configuration.resolutionStrategy.forcedModules)
+                    }
+
+                    if(configuration.dependencies) {
+                        dependencies.put(configuration.name, configuration.dependencies.collect { dep ->
+                            def mapped
+                            switch(dep.type) {
+                                case 'external_module':
+                                    mapped = "'${gavMapper.mapGAVToString(dep)}'".toString()
+                                    break
+                                case 'project':
+                                    mapped = "project(':${dep.project}')".toString()
+                                    break
+                            }
+                            mapped
+                        }.findAll{it})
+                    }
+                }
+
+                File buildFile = new File(projectDir, "build.gradle")
+                buildFile.withPrintWriter { out ->
+                    out.println("apply plugin:'java'")
+                    if (dependencies) {
+                        out.println("dependencies {")
+                        dependencies.each { configurationName, dependencyList ->
+                            dependencyList.each { dep ->
+                                out.println("    ${configurationName} ${dep}")
+                            }
+                        }
+                        out.println("}")
                     }
                 }
             }
