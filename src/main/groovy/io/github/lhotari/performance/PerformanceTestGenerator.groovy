@@ -44,18 +44,7 @@ class PerformanceTestGenerator {
                         if(!sharedConfigurations.containsKey(configuration.name)) {
                             configurations.put(configuration.name, configuration)
                         }
-                        dependencies.put(configuration.name, configuration.dependencies.collect { dep ->
-                            def mapped
-                            switch(dep.type) {
-                                case 'external_module':
-                                    mapped = "'${gavMapper.mapGAVToString(dep)}'".toString()
-                                    break
-                                case 'project':
-                                    mapped = "project(':${dep.project}')".toString()
-                                    break
-                            }
-                            mapped
-                        }.findAll{it})
+                        dependencies.put(configuration.name, configuration.dependencies)
                     }
                 }
 
@@ -71,9 +60,9 @@ class PerformanceTestGenerator {
                     }
                     if (dependencies) {
                         out.println("dependencies {")
-                        dependencies.each { configurationName, dependencyList ->
-                            dependencyList.each { dep ->
-                                out.println("    ${configurationName} ${dep}")
+                        dependencies.each { configurationName, deps ->
+                            deps.each { dep ->
+                                renderDependency(out, '    ', configurationName, dep)
                             }
                         }
                         out.println("}")
@@ -123,6 +112,27 @@ class PerformanceTestGenerator {
         }
     }
 
+    def renderDependency(PrintWriter out, indent, def configurationName, def dep) {
+        def mapped
+        def transitive = true
+        switch (dep.type) {
+            case 'external_module':
+                mapped = "'${gavMapper.mapGAVToString(dep)}'".toString()
+                transitive = dep.transitive
+                break
+            case 'project':
+                mapped = "project(':${dep.project}')".toString()
+                break
+        }
+        if (mapped) {
+            if (transitive) {
+                out.println "${indent}${configurationName} ${mapped}"
+            } else {
+                out.println "${indent}${configurationName}(${mapped}) { transitive = false }"
+            }
+        }
+    }
+
     private void renderConfiguration(output, configuration) {
         if (!(configuration.name in defaultConfigurationNames)) {
             output.print("        ${configuration.name}")
@@ -130,6 +140,9 @@ class PerformanceTestGenerator {
                 output.print(".extendsFrom(${configuration.extendsFrom.collect { it.configuration }.join(', ')})")
             }
             output.println()
+            if (!configuration.transitive) {
+                output.println("        ${configuration.name} { transitive = false }")
+            }
         }
     }
 
