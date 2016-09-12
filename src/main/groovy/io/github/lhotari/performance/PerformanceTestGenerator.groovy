@@ -8,6 +8,9 @@ class PerformanceTestGenerator {
     File jsonFile
     File outputDir
     GavMapper gavMapper = new GavMapper()
+    Collection<String> defaultConfigurationNames = ['compile', 'testCompile', 'compileOnly', 'testCompileOnly', 'runtime', 'testRuntime',
+                                                     'default', 'archives',
+                                                     'classpath', 'compileClasspath', 'testCompileClasspath', 'testRuntimeClasspath'] as Set
 
     void generate() {
         def json = new JsonSlurper().parse(jsonFile, 'UTF-8')
@@ -17,7 +20,7 @@ class PerformanceTestGenerator {
         def allExcludedRules = [] as Set
         def allForcedModules = [] as Set
 
-        def allConfigurations = [:]
+        Map sharedConfigurations = resolveSharedConfigurations(json)
 
         json.projects.each { project ->
             if(project.name != 'project_root') {
@@ -27,12 +30,9 @@ class PerformanceTestGenerator {
                 projectDir.mkdir()
 
                 def dependencies = [:]
+                def configurations = [:]
 
                 project.configurations.each { configuration ->
-                    if(!allConfigurations.containsKey(configuration.name)) {
-                        allConfigurations.put(configuration.name, configuration)
-                    }
-
                     if(configuration.excludeRules) {
                         allExcludedRules << convertToListOfMaps(configuration.excludeRules)
                     }
@@ -41,6 +41,9 @@ class PerformanceTestGenerator {
                     }
 
                     if(configuration.dependencies) {
+                        if(!sharedConfigurations.containsKey(configuration.name)) {
+                            configurations.put(configuration.name, configuration)
+                        }
                         dependencies.put(configuration.name, configuration.dependencies.collect { dep ->
                             def mapped
                             switch(dep.type) {
@@ -59,6 +62,13 @@ class PerformanceTestGenerator {
                 File buildFile = new File(projectDir, "build.gradle")
                 buildFile.withPrintWriter { out ->
                     out.println("apply plugin:'java'")
+                    if (configurations) {
+                        out.println("configurations {")
+                        configurations.each { configurationName, configuration ->
+                            renderConfiguration(out, configuration)
+                        }
+                        out.println("}")
+                    }
                     if (dependencies) {
                         out.println("dependencies {")
                         dependencies.each { configurationName, dependencyList ->
@@ -87,6 +97,10 @@ class PerformanceTestGenerator {
             output.println("plugin:'java'")
             output.println("subprojects { project ->")
             output.println("    configurations {")
+            sharedConfigurations.each { name, configuration ->
+                renderConfiguration(output, configuration)
+            }
+
             output.println("        all {")
             excludedRules.each {
                 def parts = []
@@ -107,6 +121,43 @@ class PerformanceTestGenerator {
             output.println("    }")
             output.println("}")
         }
+    }
+
+    private void renderConfiguration(output, configuration) {
+        if (!(configuration.name in defaultConfigurationNames)) {
+            output.print("        ${configuration.name}")
+            if (configuration.extendsFrom) {
+                output.print(".extendsFrom(${configuration.extendsFrom.collect { it.configuration }.join(', ')})")
+            }
+            output.println()
+        }
+    }
+
+    private Map resolveSharedConfigurations(json) {
+        Map allConfigurations = null
+        json.projects.each { project ->
+            if (project.name != 'project_root') {
+                def configurationsInProject = [:]
+                project.configurations.each { configuration ->
+                    if (configuration.dependencies) {
+                        configurationsInProject.put(configuration.name, configuration)
+                    }
+                }
+                if(configurationsInProject) {
+                    if (allConfigurations == null) {
+                        allConfigurations = configurationsInProject
+                    } else {
+                        for (Iterator<Map.Entry> iterator = allConfigurations.entrySet().iterator(); iterator.hasNext();) {
+                            Map.Entry entry = iterator.next()
+                            if (!configurationsInProject.containsKey(entry.key)) {
+                                iterator.remove()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        allConfigurations
     }
 
     static class GavMapper {
