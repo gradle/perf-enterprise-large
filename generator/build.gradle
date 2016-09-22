@@ -1,5 +1,10 @@
-apply plugin: 'groovy'
-apply plugin: 'idea'
+plugins {
+  id 'groovy'
+  id 'idea'
+  id 'application'
+}
+
+mainClassName = 'org.gradle.generator.enterprise.PerformanceTestGenerator'
 
 repositories {
     jcenter()
