@@ -94,10 +94,31 @@ class PerformanceTestGenerator {
             output.println("apply plugin:'java'")
 
             output << '''
+def mavenRepoUrl = project.hasProperty('useFileRepo') ? rootProject.file("mavenRepo").toURI().toURL() : "http://localhost:8000/"
 allprojects { project ->
     repositories {
         maven {
-            url rootProject.file("mavenRepo").toURI().toURL()
+            url mavenRepoUrl
+        }
+    }
+}
+
+import org.gradle.plugins.javascript.envjs.http.simple.SimpleHttpFileServerFactory
+
+boolean skipStarting = false
+task startMavenRepo {
+    doFirst {
+        try {
+            if (!skipStarting) {
+                SimpleHttpFileServerFactory factory = new SimpleHttpFileServerFactory()
+                def mavenRepo = rootProject.file("mavenRepo")
+                println "Starting server for ${mavenRepo}"
+                HttpFileServer server = factory.start(mavenRepo, 8000)
+                println "Started ${server.getResourceUrl('/')}"
+            }
+        } catch (e) {
+            // ignore
+            skipStarting = true
         }
     }
 }
@@ -132,6 +153,7 @@ allprojects { project ->
             output << '''
         task resolveDependencies {
             dependsOn configurations
+            dependsOn ':startMavenRepo'
             // Need this to ensure that configuration is actually resolved
             doLast {
                 configurations.each {
