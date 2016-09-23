@@ -192,17 +192,23 @@ allprojects { project ->
         def parentDeps
         if (parent != null) {
             def parentId = dependencyId(parent)
-            if (allExternalDependencies.containsKey(parentId)) {
-                parentDeps = dependenciesForExternalDependencies.get(parentId)
-                if (parentDeps == null) {
-                    parentDeps = []
-                    dependenciesForExternalDependencies.put(parentId, parentDeps)
-                }
+            parentDeps = dependenciesForExternalDependencies.get(parentId)
+            if (parentDeps == null) {
+                parentDeps = []
+                dependenciesForExternalDependencies.put(parentId, parentDeps)
+            }
+            if(!allExternalDependencies.containsKey(parentId)) {
+                allExternalDependencies.put(parentId, parent)
             }
         }
         for (def dep : dependencyGraph) {
             if (parentDeps != null) {
-                parentDeps << [group: dep.group, name: dep.name, version: dep.version]
+                def subdep = [group: dep.group, name: dep.name, version: dep.version]
+                def subid = dependencyId(subdep)
+                if(!allExternalDependencies.containsKey(subid)) {
+                    allExternalDependencies.put(subid, subdep)
+                }
+                parentDeps << subdep
             }
             if (dep.type == 'resolved' && dep.dependencies) {
                 traverseDependencies(dep, dep.dependencies, allExternalDependencies, dependenciesForExternalDependencies)
