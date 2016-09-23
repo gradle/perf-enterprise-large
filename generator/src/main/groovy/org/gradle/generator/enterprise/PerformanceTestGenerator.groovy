@@ -92,6 +92,17 @@ class PerformanceTestGenerator {
         def rootBuildFile = new File(outputDir, 'build.gradle')
         rootBuildFile.withPrintWriter { output ->
             output.println("plugin:'java'")
+
+            output << '''
+allprojects { project ->
+    repositories {
+        maven {
+            url rootProject.file("mavenRepo").toURI().toURL()
+        }
+    }
+}
+'''
+
             output.println("subprojects { project ->")
             output.println("    configurations {")
             sharedConfigurations.each { name, configuration ->
