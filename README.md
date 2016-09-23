@@ -18,7 +18,7 @@ At this point, you should be able to pop back up to the top level and run the bu
 
 ```sh
 $> cd ../
-$> gradle resolveDependencies
+$> gradle --refresh-dependencies resolveDependencies
 ```
 
 ## Integrated profiling tools
