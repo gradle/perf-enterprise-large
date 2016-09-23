@@ -116,6 +116,20 @@ class PerformanceTestGenerator {
             output.println("            }")
             output.println("        }")
             output.println("    }")
+
+
+            output << '''
+        task resolveDependencies {
+            dependsOn configurations
+            // Need this to ensure that configuration is actually resolved
+            doLast {
+                configurations.each {
+                    println "project: ${project.path} configuration: ${it.name} size: ${it.files.size()}"
+                }
+            }
+        }
+'''
+
             output.println("}")
         }
 
