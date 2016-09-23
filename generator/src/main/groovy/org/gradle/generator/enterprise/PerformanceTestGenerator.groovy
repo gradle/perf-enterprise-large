@@ -80,7 +80,7 @@ class PerformanceTestGenerator {
         }
         def settingsFile = new File(outputDir, 'settings.gradle')
         settingsFile.withPrintWriter { out ->
-            out.println("include ${projectNames.collect { "'${it}'" }.join(', ')}")
+            out.println("include([${projectNames.collect { "'${it}'" }.join(', ')}] as String[])")
         }
 
         def findElementWithMostElements = { collection ->
@@ -91,7 +91,7 @@ class PerformanceTestGenerator {
 
         def rootBuildFile = new File(outputDir, 'build.gradle')
         rootBuildFile.withPrintWriter { output ->
-            output.println("plugin:'java'")
+            output.println("apply plugin:'java'")
 
             output << '''
 allprojects { project ->
