@@ -2,6 +2,8 @@ package org.gradle.generator.enterprise
 
 import groovy.json.JsonSlurper
 import groovy.transform.TupleConstructor
+import org.gradle.generator.maven.MavenModule
+import org.gradle.generator.maven.MavenRepository
 
 @TupleConstructor
 class PerformanceTestGenerator {
@@ -9,8 +11,9 @@ class PerformanceTestGenerator {
     File outputDir
     GavMapper gavMapper = new GavMapper()
     Collection<String> defaultConfigurationNames = ['compile', 'testCompile', 'compileOnly', 'testCompileOnly', 'runtime', 'testRuntime',
-                                                     'default', 'archives',
-                                                     'classpath', 'compileClasspath', 'testCompileClasspath', 'testRuntimeClasspath'] as Set
+                                                    'default', 'archives',
+                                                    'classpath', 'compileClasspath', 'testCompileClasspath', 'testRuntimeClasspath'] as Set
+
 
     void generate() {
         def json = new JsonSlurper().parse(jsonFile, 'UTF-8')
@@ -20,10 +23,12 @@ class PerformanceTestGenerator {
         def allExcludedRules = [] as Set
         def allForcedModules = [] as Set
 
+        def allExternalDependencies = [:]
+
         Map sharedConfigurations = resolveSharedConfigurations(json)
 
         json.projects.each { project ->
-            if(project.name != 'project_root') {
+            if (project.name != 'project_root') {
                 projectNames << project.name
                 println project.name
                 File projectDir = new File(outputDir, project.name)
@@ -33,15 +38,15 @@ class PerformanceTestGenerator {
                 def configurations = [:]
 
                 project.configurations.each { configuration ->
-                    if(configuration.excludeRules) {
+                    if (configuration.excludeRules) {
                         allExcludedRules << convertToListOfMaps(configuration.excludeRules)
                     }
-                    if(configuration.resolutionStrategy?.forcedModules) {
+                    if (configuration.resolutionStrategy?.forcedModules) {
                         allForcedModules << convertToListOfMaps(configuration.resolutionStrategy.forcedModules)
                     }
 
-                    if(configuration.dependencies) {
-                        if(!sharedConfigurations.containsKey(configuration.name)) {
+                    if (configuration.dependencies) {
+                        if (!sharedConfigurations.containsKey(configuration.name)) {
                             configurations.put(configuration.name, configuration)
                         }
                         dependencies.put(configuration.name, configuration.dependencies)
@@ -63,6 +68,9 @@ class PerformanceTestGenerator {
                         dependencies.each { configurationName, deps ->
                             deps.each { dep ->
                                 renderDependency(out, '    ', configurationName, dep)
+                                if (dep.type == 'external_module') {
+                                    allExternalDependencies.put(dependencyId(dep), dep)
+                                }
                             }
                         }
                         out.println("}")
@@ -76,7 +84,7 @@ class PerformanceTestGenerator {
         }
 
         def findElementWithMostElements = { collection ->
-            collection.sort(false) { a, b -> b.size() <=> a.size() }.find{it}
+            collection.sort(false) { a, b -> b.size() <=> a.size() }.find { it }
         }
         def excludedRules = findElementWithMostElements(allExcludedRules)
         def forcedModules = findElementWithMostElements(allForcedModules)
@@ -93,13 +101,13 @@ class PerformanceTestGenerator {
             output.println("        all {")
             excludedRules.each {
                 def parts = []
-                if(it.group) {
+                if (it.group) {
                     parts << "group: '${it.group}'"
                 }
-                if(it.module) {
+                if (it.module) {
                     parts << "module: '${it.module}'"
                 }
-                if(parts) {
+                if (parts) {
                     output.println("            exclude ${parts.join(', ')}")
                 }
             }
@@ -110,6 +118,75 @@ class PerformanceTestGenerator {
             output.println("    }")
             output.println("}")
         }
+
+        // Generate artifact in repo for exclusions
+        excludedRules.each { it ->
+            if (it.group && it.module) {
+                def dep = [version: '1.0']
+                dep.putAll(it)
+                allExternalDependencies.put(dependencyId(dep), dep)
+            }
+        }
+
+        // Generate artifact in repo for forced modules
+        forcedModules.each { dep ->
+            allExternalDependencies.put(dependencyId(dep), dep)
+        }
+
+        generateMavenRepository(allExternalDependencies, json)
+    }
+
+    private void generateMavenRepository(allExternalDependencies, json) {
+        def dependenciesForExternalDependencies = [:]
+
+        traverseDependencies(null, json.largest_dependency_graph.graph.dependencies, allExternalDependencies, dependenciesForExternalDependencies)
+        traverseDependencies(null, json.deepest_dependency_graph.graph.dependencies, allExternalDependencies, dependenciesForExternalDependencies)
+
+        MavenRepository repo = new MavenRepository(new File(outputDir, "mavenRepo"))
+        //repo.mavenJarCreator.minimumSizeKB = 1024
+        //repo.mavenJarCreator.maximumSizeKB = 1024
+
+        allExternalDependencies.each { depId, dep ->
+            def mapped = gavMapper.mapGAV(dep)
+            MavenModule module = repo.addModule(mapped.group, mapped.name, mapped.version)
+            def deps = dependenciesForExternalDependencies.get(depId)
+            if (deps) {
+                for (def subdep : deps) {
+                    def mappedSub = gavMapper.mapGAV(subdep)
+                    module.dependsOn(mappedSub.group, mappedSub.name, mappedSub.version)
+                }
+            }
+        }
+
+        println "Creating maven repository..."
+        repo.publish()
+        println "Done."
+    }
+
+    def traverseDependencies(parent, dependencyGraph, allExternalDependencies, dependenciesForExternalDependencies) {
+        def parentDeps
+        if (parent != null) {
+            def parentId = dependencyId(parent)
+            if (allExternalDependencies.containsKey(parentId)) {
+                parentDeps = dependenciesForExternalDependencies.get(parentId)
+                if (parentDeps == null) {
+                    parentDeps = []
+                    dependenciesForExternalDependencies.put(parentId, parentDeps)
+                }
+            }
+        }
+        for (def dep : dependencyGraph) {
+            if (parentDeps != null) {
+                parentDeps << [group: dep.group, name: dep.name, version: dep.version]
+            }
+            if (dep.type == 'resolved' && dep.dependencies) {
+                traverseDependencies(dep, dep.dependencies, allExternalDependencies, dependenciesForExternalDependencies)
+            }
+        }
+    }
+
+    static String dependencyId(Map<String, String> dep) {
+        "${dep.group}:${dep.name}:${dep.version}".toString()
     }
 
     def renderDependency(PrintWriter out, indent, def configurationName, def dep) {
@@ -156,7 +233,7 @@ class PerformanceTestGenerator {
                         configurationsInProject.put(configuration.name, configuration)
                     }
                 }
-                if(configurationsInProject) {
+                if (configurationsInProject) {
                     if (allConfigurations == null) {
                         allConfigurations = configurationsInProject
                     } else {
@@ -175,16 +252,20 @@ class PerformanceTestGenerator {
 
     static class GavMapper {
         Map<String, Integer> versionNumberCounter = [:]
-        Map<String, String> mappedGav = [:]
+        Map<String, Map<String, String>> mappedGav = [:]
 
         String mapGAVToString(Map<String, String> gav) {
+            dependencyId(mapGAV(gav))
+        }
+
+        Map<String, String> mapGAV(Map<String, String> gav) {
             String groupAndName = "${gav.group}:${gav.name}"
             String key = "${groupAndName}:${gav.version}"
-            String mapped = mappedGav.get(key)
+            Map<String, String> mapped = mappedGav.get(key)
             if (mapped == null) {
                 Integer versionNumber = (versionNumberCounter.get(groupAndName) ?: -1) + 1
                 versionNumberCounter.put(groupAndName, versionNumber)
-                mapped = "${groupAndName}:1.${versionNumber}"
+                mapped = [group: gav.group, name: gav.name, version: "1.${versionNumber}".toString()]
                 mappedGav.put(key, mapped)
             }
             return mapped
