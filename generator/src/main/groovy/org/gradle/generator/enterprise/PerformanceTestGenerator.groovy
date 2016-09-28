@@ -1,11 +1,9 @@
 package org.gradle.generator.enterprise
 
 import groovy.json.JsonSlurper
-import groovy.transform.TupleConstructor
 import org.gradle.generator.maven.MavenModule
 import org.gradle.generator.maven.MavenRepository
 
-@TupleConstructor
 class PerformanceTestGenerator {
     File jsonFile
     File outputDir
@@ -14,81 +12,39 @@ class PerformanceTestGenerator {
                                                     'default', 'archives',
                                                     'classpath', 'compileClasspath', 'testCompileClasspath', 'testRuntimeClasspath'] as Set
 
+    def projectNames = []
+
+    def allExcludedRules = [] as Set
+    def allForcedModules = [] as Set
+
+    def allExternalDependencies = [:]
+
+    def excludedRules
+    def forcedModules
+    def buildSizeJson
+    Map sharedConfigurations
 
     void generate() {
-        def json = new JsonSlurper().parse(jsonFile, 'UTF-8')
+        buildSizeJson = new JsonSlurper().parse(jsonFile, 'UTF-8')
         outputDir.mkdirs()
-        def projectNames = []
 
-        def allExcludedRules = [] as Set
-        def allForcedModules = [] as Set
+        sharedConfigurations = resolveSharedConfigurations()
 
-        def allExternalDependencies = [:]
-
-        Map sharedConfigurations = resolveSharedConfigurations(json)
-
-        json.projects.each { project ->
+        buildSizeJson.projects.each { project ->
             if (project.name != 'project_root') {
-                projectNames << project.name
-                println project.name
-                File projectDir = new File(outputDir, project.name)
-                projectDir.mkdir()
-
-                def dependencies = [:]
-                def configurations = [:]
-
-                project.configurations.each { configuration ->
-                    if (configuration.excludeRules) {
-                        allExcludedRules << convertToListOfMaps(configuration.excludeRules)
-                    }
-                    if (configuration.resolutionStrategy?.forcedModules) {
-                        allForcedModules << convertToListOfMaps(configuration.resolutionStrategy.forcedModules)
-                    }
-
-                    if (configuration.dependencies) {
-                        if (!sharedConfigurations.containsKey(configuration.name)) {
-                            configurations.put(configuration.name, configuration)
-                        }
-                        dependencies.put(configuration.name, configuration.dependencies)
-                    }
-                }
-
-                File buildFile = new File(projectDir, "build.gradle")
-                buildFile.withPrintWriter { out ->
-                    out.println("apply plugin:'java'")
-                    if (configurations) {
-                        out.println("configurations {")
-                        configurations.each { configurationName, configuration ->
-                            renderConfiguration(out, configuration)
-                        }
-                        out.println("}")
-                    }
-                    if (dependencies) {
-                        out.println("dependencies {")
-                        dependencies.each { configurationName, deps ->
-                            deps.each { dep ->
-                                renderDependency(out, '    ', configurationName, dep)
-                                if (dep.type == 'external_module') {
-                                    allExternalDependencies.put(dependencyId(dep), dep)
-                                }
-                            }
-                        }
-                        out.println("}")
-                    }
-                }
+                generateSubProject(project)
             }
         }
-        def settingsFile = new File(outputDir, 'settings.gradle')
-        settingsFile.withPrintWriter { out ->
-            out.println("include([${projectNames.collect { "'${it}'" }.join(', ')}] as String[])")
-        }
+        generateSettingsFile(projectNames)
 
-        def findElementWithMostElements = { collection ->
-            collection.sort(false) { a, b -> b.size() <=> a.size() }.find { it }
-        }
-        def excludedRules = findElementWithMostElements(allExcludedRules)
-        def forcedModules = findElementWithMostElements(allForcedModules)
+        resolveSharedExcludedAndForcedModules()
 
+        generateRootBuildFile()
+
+        generateMavenRepository()
+    }
+
+    private void generateRootBuildFile() {
         def rootBuildFile = new File(outputDir, 'build.gradle')
         rootBuildFile.withPrintWriter { output ->
             output.println("apply plugin:'java'")
@@ -166,7 +122,74 @@ task startMavenRepo {
 
             output.println("}")
         }
+    }
 
+    private void resolveSharedExcludedAndForcedModules() {
+        def findElementWithMostElements = { collection ->
+            collection.sort(false) { a, b -> b.size() <=> a.size() }.find { it }
+        }
+        excludedRules = findElementWithMostElements(allExcludedRules)
+        forcedModules = findElementWithMostElements(allForcedModules)
+    }
+
+    private void generateSubProject(project) {
+        projectNames << project.name
+        println project.name
+        File projectDir = new File(outputDir, project.name)
+        projectDir.mkdir()
+
+        def dependencies = [:]
+        def configurations = [:]
+
+        project.configurations.each { configuration ->
+            if (configuration.excludeRules) {
+                allExcludedRules << convertToListOfMaps(configuration.excludeRules)
+            }
+            if (configuration.resolutionStrategy?.forcedModules) {
+                allForcedModules << convertToListOfMaps(configuration.resolutionStrategy.forcedModules)
+            }
+
+            if (configuration.dependencies) {
+                if (!sharedConfigurations.containsKey(configuration.name)) {
+                    configurations.put(configuration.name, configuration)
+                }
+                dependencies.put(configuration.name, configuration.dependencies)
+            }
+        }
+
+        File buildFile = new File(projectDir, "build.gradle")
+        buildFile.withPrintWriter { out ->
+            out.println("apply plugin:'java'")
+            if (configurations) {
+                out.println("configurations {")
+                configurations.each { configurationName, configuration ->
+                    renderConfiguration(out, configuration)
+                }
+                out.println("}")
+            }
+            if (dependencies) {
+                out.println("dependencies {")
+                dependencies.each { configurationName, deps ->
+                    deps.each { dep ->
+                        renderDependency(out, '    ', configurationName, dep)
+                        if (dep.type == 'external_module') {
+                            allExternalDependencies.put(dependencyId(dep), dep)
+                        }
+                    }
+                }
+                out.println("}")
+            }
+        }
+    }
+
+    private void generateSettingsFile(projectNames) {
+        def settingsFile = new File(outputDir, 'settings.gradle')
+        settingsFile.withPrintWriter { out ->
+            out.println("include([${projectNames.collect { "'${it}'" }.join(', ')}] as String[])")
+        }
+    }
+
+    private void generateMavenRepository() {
         // Generate artifact in repo for exclusions
         excludedRules.each { it ->
             if (it.group && it.module) {
@@ -181,14 +204,10 @@ task startMavenRepo {
             allExternalDependencies.put(dependencyId(dep), dep)
         }
 
-        generateMavenRepository(allExternalDependencies, json)
-    }
-
-    private void generateMavenRepository(allExternalDependencies, json) {
         def dependenciesForExternalDependencies = [:]
 
-        traverseDependencies(null, json.largest_dependency_graph.graph.dependencies, allExternalDependencies, dependenciesForExternalDependencies)
-        traverseDependencies(null, json.deepest_dependency_graph.graph.dependencies, allExternalDependencies, dependenciesForExternalDependencies)
+        traverseDependencies(null, buildSizeJson.largest_dependency_graph.graph.dependencies, allExternalDependencies, dependenciesForExternalDependencies)
+        traverseDependencies(null, buildSizeJson.deepest_dependency_graph.graph.dependencies, allExternalDependencies, dependenciesForExternalDependencies)
 
         MavenRepository repo = new MavenRepository(new File(outputDir, "mavenRepo"))
         //repo.mavenJarCreator.minimumSizeKB = 1024
@@ -220,7 +239,7 @@ task startMavenRepo {
                 parentDeps = []
                 dependenciesForExternalDependencies.put(parentId, parentDeps)
             }
-            if(!allExternalDependencies.containsKey(parentId)) {
+            if (!allExternalDependencies.containsKey(parentId)) {
                 allExternalDependencies.put(parentId, parent)
             }
         }
@@ -228,7 +247,7 @@ task startMavenRepo {
             if (parentDeps != null) {
                 def subdep = [group: dep.group, name: dep.name, version: dep.version]
                 def subid = dependencyId(subdep)
-                if(!allExternalDependencies.containsKey(subid)) {
+                if (!allExternalDependencies.containsKey(subid)) {
                     allExternalDependencies.put(subid, subdep)
                 }
                 parentDeps << subdep
@@ -277,9 +296,9 @@ task startMavenRepo {
         }
     }
 
-    private Map resolveSharedConfigurations(json) {
+    private Map resolveSharedConfigurations() {
         Map allConfigurations = null
-        json.projects.each { project ->
+        buildSizeJson.projects.each { project ->
             if (project.name != 'project_root') {
                 def configurationsInProject = [:]
                 project.configurations.each { configuration ->
@@ -331,7 +350,7 @@ task startMavenRepo {
     }
 
     static void main(String[] args) {
-        def generator = new PerformanceTestGenerator(new File('buildsizeinfo.json'), new File('..'))
+        def generator = new PerformanceTestGenerator(jsonFile: new File('buildsizeinfo.json'), outputDir: new File('..'))
         generator.generate()
     }
 }
