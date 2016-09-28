@@ -1,0 +1,14 @@
+build/
+.gradle/
+
+# IDEA files
+/*.iml
+/*.ipr
+/*.iws
+/.idea
+
+# temporary ignore generated files
+/project_*/
+/settings.gradle
+/build.gradle
+/mavenRepo/
