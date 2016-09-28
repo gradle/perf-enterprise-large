@@ -123,9 +123,13 @@ class PerformanceTestGenerator {
 
             output.println 'subprojects { project ->'
 
+            output.println 'project.plugins.withType(JavaPlugin) {'
+
             renderConfigurationsBlock(output)
 
             appendResolveDependenciesTask(output)
+
+            output.println '}'
 
             output.println '}'
         }
@@ -253,7 +257,9 @@ task startMavenRepo {
 
         File buildFile = new File(projectDir, "build.gradle")
         buildFile.withPrintWriter { out ->
-            out.println("apply plugin:'java'")
+            if (configurations || configurationDependencies) {
+                out.println("apply plugin:'java'")
+            }
             if (configurations) {
                 out.println("configurations {")
                 configurations.each { configurationName, configuration ->
