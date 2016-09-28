@@ -182,8 +182,8 @@ task startMavenRepo {
         File projectDir = new File(outputDir, project.name)
         projectDir.mkdir()
 
-        def dependencies = [:]
-        def configurations = [:]
+        Map<String, Collection<Map>> configurationDependencies = [:]
+        Map<String, Map> configurations = [:]
 
         project.configurations.each { configuration ->
             if (configuration.excludeRules) {
@@ -197,7 +197,7 @@ task startMavenRepo {
                 if (!sharedConfigurations.containsKey(configuration.name)) {
                     configurations.put(configuration.name, configuration)
                 }
-                dependencies.put(configuration.name, configuration.dependencies)
+                configurationDependencies.put(configuration.name, configuration.dependencies)
             }
         }
 
@@ -211,9 +211,9 @@ task startMavenRepo {
                 }
                 out.println("}")
             }
-            if (dependencies) {
+            if (configurationDependencies) {
                 out.println("dependencies {")
-                dependencies.each { configurationName, deps ->
+                configurationDependencies.each { configurationName, deps ->
                     deps.each { dep ->
                         renderDependency(out, '    ', configurationName, dep)
                         if (dep.type == 'external_module') {
@@ -274,6 +274,8 @@ task startMavenRepo {
         println "Done."
     }
 
+    // reverse-engineer the external dependencies from the dependency graphs that are stored in the buildsizeinfo.json file
+    // the buildsizeinfo.json file lacks information about all external dependencies used in the build and that's the reason to do this
     def traverseDependencies(parent, dependencyGraph, allExternalDependencies, dependenciesForExternalDependencies) {
         def parentDeps
         if (parent != null) {
@@ -368,6 +370,9 @@ task startMavenRepo {
         allConfigurations
     }
 
+    // maps a masked version String in buildsizeinfo.json to a unique version number starting from 1.0
+    // the reason for doing this is the feature of Gradle that non-parseable version strings might be handled
+    // in a different way than normal version numbers
     static class GavMapper {
         Map<String, Integer> versionNumberCounter = [:]
         Map<String, Map<String, String>> mappedGav = [:]
