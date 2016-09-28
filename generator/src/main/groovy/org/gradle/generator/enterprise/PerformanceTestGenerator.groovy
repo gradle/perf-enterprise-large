@@ -194,6 +194,8 @@ allprojects { project ->
     repositories {
         maven {
             url mavenRepoUrl
+            mavenLocal()
+            mavenCentral() // used for junit
         }
     }
 }
@@ -319,8 +321,9 @@ task startMavenRepo {
                 }
                 out.println("}")
             }
-            if (configurationDependencies) {
+            if (configurations || configurationDependencies) {
                 out.println("dependencies {")
+                out.println("testCompile 'junit:junit:4.12'")
                 configurationDependencies.each { configurationName, deps ->
                     deps.each { dep ->
                         renderDependency(out, '    ', configurationName, dep)
