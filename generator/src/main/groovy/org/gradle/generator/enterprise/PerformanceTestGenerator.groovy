@@ -12,17 +12,29 @@ class PerformanceTestGenerator {
                                                     'default', 'archives',
                                                     'classpath', 'compileClasspath', 'testCompileClasspath', 'testRuntimeClasspath'] as Set
 
-    def projectNames = []
+    // project names of all sub projects
+    List<String> projectNames = []
 
-    def allExcludedRules = [] as Set
-    def allForcedModules = [] as Set
+    // all exclude rules found in all projects
+    Set<List<Map>> allExcludedRules = [] as Set
+    // all force modules rules found in all projects
+    Set<List<Map>> allForcedModules = [] as Set
 
-    def allExternalDependencies = [:]
+    // all external dependencies that have been found
+    // since buildsizeinfo.json doesn't include all external dependencies, this is a guess of the external dependencies
+    Map<String, Map> allExternalDependencies = [:]
 
-    def excludedRules
-    def forcedModules
+    // resolved shared exclude rules that get applied to all projects
+    // this is determined from the exclude rules of different projects
+    List<Map> excludedRules
+    // resolved force modules resolved from projects
+    List<Map> forcedModules
+
+    // the parsed JSON object
     def buildSizeJson
-    Map sharedConfigurations
+
+    // resolved shared configurations that are present in all/most projects
+    Map<String, Map> sharedConfigurations
 
     void generate() {
         buildSizeJson = new JsonSlurper().parse(jsonFile, 'UTF-8')
@@ -47,9 +59,30 @@ class PerformanceTestGenerator {
     private void generateRootBuildFile() {
         def rootBuildFile = new File(outputDir, 'build.gradle')
         rootBuildFile.withPrintWriter { output ->
-            output.println("apply plugin:'java'")
+            renderApplyRootPlugins(output)
 
-            output << '''
+            addGeneratedMavenRepoToAllProjects(output)
+
+            appendStartMavenRepoTask(output)
+
+            output.println 'allprojects { project ->'
+
+            output.println "apply plugin: 'idea'"
+
+            output.println '}'
+
+            output.println 'subprojects { project ->'
+
+            renderConfigurationsBlock(output)
+
+            appendResolveDependenciesTask(output)
+
+            output.println '}'
+        }
+    }
+
+    private Writer addGeneratedMavenRepoToAllProjects(PrintWriter output) {
+        output << '''
 def mavenRepoUrl = project.hasProperty('useFileRepo') ? rootProject.file("mavenRepo").toURI().toURL() : "http://localhost:8000/"
 allprojects { project ->
     repositories {
@@ -57,9 +90,47 @@ allprojects { project ->
             url mavenRepoUrl
         }
     }
-    apply plugin: 'idea'
 }
+'''
+    }
 
+    private Writer renderApplyRootPlugins(PrintWriter output) {
+        output << '''
+apply plugin:'java'
+'''
+    }
+
+    private void renderConfigurationsBlock(output) {
+        output.println("    configurations {")
+        sharedConfigurations.each { name, configuration ->
+            renderConfiguration(output, configuration)
+        }
+        renderAllConfigurationsBlock(output)
+        output.println("    }")
+    }
+
+    private void renderAllConfigurationsBlock(PrintWriter output) {
+        output.println("        all {")
+        excludedRules.each {
+            def parts = []
+            if (it.group) {
+                parts << "group: '${it.group}'"
+            }
+            if (it.module) {
+                parts << "module: '${it.module}'"
+            }
+            if (parts) {
+                output.println("            exclude ${parts.join(', ')}")
+            }
+        }
+        output.println("            resolutionStrategy {")
+        output.println("                force ${forcedModules.collect { "'${gavMapper.mapGAVToString(it)}'" }.join(', ')}")
+        output.println("            }")
+        output.println("        }")
+    }
+
+    private void appendStartMavenRepoTask(PrintWriter output) {
+        output << '''
 import org.gradle.plugins.javascript.envjs.http.simple.SimpleHttpFileServerFactory
 
 boolean skipStarting = false
@@ -80,34 +151,10 @@ task startMavenRepo {
     }
 }
 '''
+    }
 
-            output.println("subprojects { project ->")
-            output.println("    configurations {")
-            sharedConfigurations.each { name, configuration ->
-                renderConfiguration(output, configuration)
-            }
-
-            output.println("        all {")
-            excludedRules.each {
-                def parts = []
-                if (it.group) {
-                    parts << "group: '${it.group}'"
-                }
-                if (it.module) {
-                    parts << "module: '${it.module}'"
-                }
-                if (parts) {
-                    output.println("            exclude ${parts.join(', ')}")
-                }
-            }
-            output.println("            resolutionStrategy {")
-            output.println("                force ${forcedModules.collect { "'${gavMapper.mapGAVToString(it)}'" }.join(', ')}")
-            output.println("            }")
-            output.println("        }")
-            output.println("    }")
-
-
-            output << '''
+    private void appendResolveDependenciesTask(PrintWriter output) {
+        output << '''
         task resolveDependencies {
             dependsOn configurations
             dependsOn ':startMavenRepo'
@@ -119,9 +166,6 @@ task startMavenRepo {
             }
         }
 '''
-
-            output.println("}")
-        }
     }
 
     private void resolveSharedExcludedAndForcedModules() {
@@ -296,6 +340,7 @@ task startMavenRepo {
         }
     }
 
+    // finds configurations that exist in all projects (that contain configurations)
     private Map resolveSharedConfigurations() {
         Map allConfigurations = null
         buildSizeJson.projects.each { project ->
