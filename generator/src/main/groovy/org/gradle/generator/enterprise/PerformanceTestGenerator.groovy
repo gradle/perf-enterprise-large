@@ -62,48 +62,100 @@ class PerformanceTestGenerator {
 
         generateMavenRepository()
 
+        println "Creating Java sources and test files..."
         generateJavaSourceFiles()
+        println "Done."
     }
+
 
     void generateJavaSourceFiles() {
         buildSizeJson.projects.each { project ->
             if (project.name != 'project_root') {
+                def projectDir = new File(outputDir, project.name)
+                List<Map> generatedJavaClassInfos
                 def mainSourceSet = project.sourceSets?.find { it.name == 'main' }
                 if (mainSourceSet?.loc?.java) {
-                    File sourceDir = new File(new File(outputDir, project.name), 'src/main/java')
-                    sourceDir.mkdirs()
-
-                    int loc = mainSourceSet.loc.java
-                    int files = mainSourceSet.sourceFileCounts.java
-                    int packages = mainSourceSet.packagesPerExtension.java
-
-                    int avgloc = loc / files
-
-                    for (int i = 0; i < files; i++) {
-                        int packageNum = i % packages
-                        // Production.java template has propertyCount argument
-                        // each property creates 5 source code lines
-                        int propertyCount = (avgloc - 9) / 5
-
-                        String packageName = "com.enterprise.large.${project.name}.package${packageNum}".toLowerCase()
-                        String packagePath = packageName.replace('.', '/')
-                        File packageDir = new File(sourceDir, packagePath)
-                        if (!packageDir.exists()) {
-                            packageDir.mkdirs()
-                        }
-                        String productionClassName = "Production_${project.name}_${i}"
-                        Template javaSourceTemplate = templateEngine.createTemplate('Production.java')
-
-                        File classFile = new File(packageDir, "${productionClassName}.java")
-                        classFile << javaSourceTemplate.make(
-                                productionClassName: productionClassName,
-                                packageName: packageName,
-                                propertyCount: propertyCount
-                        )
-                    }
+                    generatedJavaClassInfos = createJavaSources(projectDir, mainSourceSet, project)
+                }
+                def testSourceSet = project.sourceSets?.find { it.name == 'test' }
+                if (testSourceSet?.loc?.java) {
+                    createJavaTestSources(projectDir, testSourceSet, project, generatedJavaClassInfos)
                 }
             }
         }
+    }
+
+    private void createJavaTestSources(File projectDir, testSourceSet, project, List<Map> generatedJavaClassInfos) {
+        File sourceDir = new File(projectDir, 'src/test/java')
+        sourceDir.mkdirs()
+
+        int loc = testSourceSet.loc.java
+        int files = testSourceSet.sourceFileCounts.java
+        int avgloc = loc / files
+        int testMethodCount = (avgloc - 5) / 4
+
+        int count = 0
+        for (Map javaClassInfo : generatedJavaClassInfos) {
+            if (count++ > files) {
+                break
+            }
+            File packageDir = new File(sourceDir, javaClassInfo.packagePath)
+            if (!packageDir.exists()) {
+                packageDir.mkdirs()
+            }
+
+            String testClassName = "${javaClassInfo.productionClassName}Test"
+            Template javaSourceTemplate = templateEngine.createTemplate('Test.java')
+
+            File classFile = new File(packageDir, "${testClassName}.java")
+            Map testClassInfo = [
+                    testClassName  : testClassName,
+                    testMethodCount: testMethodCount
+            ] + javaClassInfo
+            classFile << javaSourceTemplate.make(testClassInfo)
+        }
+    }
+
+    private List<Map> createJavaSources(File projectDir, mainSourceSet, project) {
+        File sourceDir = new File(projectDir, 'src/main/java')
+        sourceDir.mkdirs()
+
+        int loc = mainSourceSet.loc.java
+        int files = mainSourceSet.sourceFileCounts.java
+        int packages = mainSourceSet.packagesPerExtension.java
+
+        int avgloc = loc / files
+        // Production.java template has propertyCount argument
+        // each property creates 5 source code lines
+        int propertyCount = (avgloc - 9) / 5
+
+        List<Map> generatedJavaClassInfos = []
+
+        for (int i = 0; i < files; i++) {
+            int packageNum = i % packages
+
+            String packageName = "com.enterprise.large.${project.name}.package${packageNum}".toLowerCase()
+            String packagePath = packageName.replace('.', '/')
+            File packageDir = new File(sourceDir, packagePath)
+            if (!packageDir.exists()) {
+                packageDir.mkdirs()
+            }
+            String productionClassName = "Production_${project.name}_${i}"
+            Template javaSourceTemplate = templateEngine.createTemplate('Production.java')
+
+            File classFile = new File(packageDir, "${productionClassName}.java")
+
+            def classInfo = [
+                    productionClassName: productionClassName,
+                    packageName        : packageName,
+                    propertyCount      : propertyCount,
+                    packagePath        : packagePath
+            ]
+            classFile << javaSourceTemplate.make(classInfo)
+            generatedJavaClassInfos << classInfo
+        }
+
+        generatedJavaClassInfos
     }
 
     private void generateRootBuildFile() {
