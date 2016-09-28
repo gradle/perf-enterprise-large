@@ -1,12 +1,15 @@
 package org.gradle.generator.enterprise
 
 import groovy.json.JsonSlurper
+import groovy.text.SimpleTemplateEngine
+import groovy.text.Template
 import org.gradle.generator.maven.MavenModule
 import org.gradle.generator.maven.MavenRepository
 
 class PerformanceTestGenerator {
     File jsonFile
     File outputDir
+    File templateDir
     GavMapper gavMapper = new GavMapper()
     Collection<String> defaultConfigurationNames = ['compile', 'testCompile', 'compileOnly', 'testCompileOnly', 'runtime', 'testRuntime',
                                                     'default', 'archives',
@@ -36,7 +39,11 @@ class PerformanceTestGenerator {
     // resolved shared configurations that are present in all/most projects
     Map<String, Map> sharedConfigurations
 
+    TemplateEngine templateEngine
+
     void generate() {
+        templateEngine = new TemplateEngine(dir: templateDir)
+
         buildSizeJson = new JsonSlurper().parse(jsonFile, 'UTF-8')
         outputDir.mkdirs()
 
@@ -54,6 +61,49 @@ class PerformanceTestGenerator {
         generateRootBuildFile()
 
         generateMavenRepository()
+
+        generateJavaSourceFiles()
+    }
+
+    void generateJavaSourceFiles() {
+        buildSizeJson.projects.each { project ->
+            if (project.name != 'project_root') {
+                def mainSourceSet = project.sourceSets?.find { it.name == 'main' }
+                if (mainSourceSet?.loc?.java) {
+                    File sourceDir = new File(new File(outputDir, project.name), 'src/main/java')
+                    sourceDir.mkdirs()
+
+                    int loc = mainSourceSet.loc.java
+                    int files = mainSourceSet.sourceFileCounts.java
+                    int packages = mainSourceSet.packagesPerExtension.java
+
+                    int avgloc = loc / files
+
+                    for (int i = 0; i < files; i++) {
+                        int packageNum = i % packages
+                        // Production.java template has propertyCount argument
+                        // each property creates 5 source code lines
+                        int propertyCount = (avgloc - 9) / 5
+
+                        String packageName = "com.enterprise.large.${project.name}.package${packageNum}".toLowerCase()
+                        String packagePath = packageName.replace('.', '/')
+                        File packageDir = new File(sourceDir, packagePath)
+                        if (!packageDir.exists()) {
+                            packageDir.mkdirs()
+                        }
+                        String productionClassName = "Production_${project.name}_${i}"
+                        Template javaSourceTemplate = templateEngine.createTemplate('Production.java')
+
+                        File classFile = new File(packageDir, "${productionClassName}.java")
+                        classFile << javaSourceTemplate.make(
+                                productionClassName: productionClassName,
+                                packageName: packageName,
+                                propertyCount: propertyCount
+                        )
+                    }
+                }
+            }
+        }
     }
 
     private void generateRootBuildFile() {
@@ -395,12 +445,27 @@ task startMavenRepo {
         }
     }
 
+    static class TemplateEngine {
+        File dir
+        SimpleTemplateEngine simpleTemplateEngine = new SimpleTemplateEngine()
+        Map<String, Template> templateCache = [:]
+
+        Template createTemplate(String templateName) {
+            Template template = templateCache.get(templateName)
+            if (template == null) {
+                template = simpleTemplateEngine.createTemplate(new File(dir, templateName))
+                templateCache.put(templateName, template)
+            }
+            template
+        }
+    }
+
     def List<Map> convertToListOfMaps(sourceListOfMaps) {
         sourceListOfMaps.collect { new LinkedHashMap(it) }
     }
 
     static void main(String[] args) {
-        def generator = new PerformanceTestGenerator(jsonFile: new File('buildsizeinfo.json'), outputDir: new File('..'))
+        def generator = new PerformanceTestGenerator(jsonFile: new File('buildsizeinfo.json'), outputDir: new File('..'), templateDir: new File('src/main/templates'))
         generator.generate()
     }
 }
