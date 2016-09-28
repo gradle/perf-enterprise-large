@@ -112,7 +112,7 @@ class PerformanceTestGenerator {
                     testClassName  : testClassName,
                     testMethodCount: testMethodCount
             ] + javaClassInfo
-            classFile << javaSourceTemplate.make(testClassInfo)
+            classFile.withWriter { it << javaSourceTemplate.make(testClassInfo) }
         }
     }
 
@@ -151,7 +151,7 @@ class PerformanceTestGenerator {
                     propertyCount      : propertyCount,
                     packagePath        : packagePath
             ]
-            classFile << javaSourceTemplate.make(classInfo)
+            classFile.withWriter { it << javaSourceTemplate.make(classInfo) }
             generatedJavaClassInfos << classInfo
         }
 
