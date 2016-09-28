@@ -101,6 +101,7 @@ allprojects { project ->
             url mavenRepoUrl
         }
     }
+    apply plugin: 'idea'
 }
 
 import org.gradle.plugins.javascript.envjs.http.simple.SimpleHttpFileServerFactory
