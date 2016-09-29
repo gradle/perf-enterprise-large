@@ -192,7 +192,6 @@ allprojects { project ->
     repositories {
         maven {
             url mavenRepoUrl
-            mavenLocal()
         }
     }
 }
