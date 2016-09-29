@@ -32,6 +32,11 @@ Make sure to pass `-g gradle-user-home` to the gradle command.
 $> gradle -g gradle-user-home resolveDependencies
 ```
 
+Enabling access logging for maven-server
+```sh
+$> export MAVEN_SERVER_ACCESS_LOG=$PWD/maven-server.log
+```
+
 ## Integrated profiling tools
 
 Use profiling scripts from [perf-native-large](https://github.com/gradle/perf-native-large).

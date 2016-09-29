@@ -1,6 +1,7 @@
 package org.gradle.mavenrepo;
 
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.NCSARequestLog;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
@@ -17,6 +18,7 @@ import java.io.IOException;
 public class JettyMavenRepo {
     public static void main(String[] args) throws Exception {
         Server server = new Server(8000);
+        configureAccessLogs(server);
         server.setStopAtShutdown(false);
         ResourceHandler resource_handler = new ResourceHandler();
         resource_handler.setDirectoriesListed(true);
@@ -56,6 +58,17 @@ public class JettyMavenRepo {
         System.out.println("On http://localhost:8000/");
         server.join();
 
+    }
+
+    private static void configureAccessLogs(Server server) {
+        String accessLogPath = System.getenv("MAVEN_SERVER_ACCESS_LOG");
+        if (accessLogPath != null) {
+            NCSARequestLog requestLog = new NCSARequestLog(accessLogPath);
+            requestLog.setAppend(true);
+            requestLog.setExtended(true);
+            requestLog.setLogLatency(true);
+            server.setRequestLog(requestLog);
+        }
     }
 }
 
