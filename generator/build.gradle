@@ -10,9 +10,22 @@ repositories {
     jcenter()
 }
 
+configurations {
+    mirror
+}
+
 dependencies {
     compile 'org.codehaus.groovy:groovy-all:2.4.7'
 
     testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
     testCompile 'junit:junit:4.12'
+
+    mirror 'junit:junit:4.12'
 }
+
+task mirrorDependencies(type: OfflineMavenRepository) {
+    configurationName = 'mirror'
+    repoDir = file('../mavenRepo')
+}
+
+run.finalizedBy mirrorDependencies

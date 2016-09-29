@@ -1,0 +1,32 @@
+import com.wiredforcode.gradle.spawn.*
+import org.gradle.internal.jvm.Jvm
+
+buildscript {
+    repositories {
+        maven { url 'http://dl.bintray.com/vermeulen-mp/gradle-plugins' }
+    }
+    dependencies {
+        classpath('com.wiredforcode:gradle-spawn-plugin:0.8.0') {
+            exclude group: 'org.codehaus.groovy'
+        }
+    }
+}
+
+apply plugin: 'com.wiredforcode.spawn'
+apply plugin: 'java'
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile 'org.eclipse.jetty:jetty-server:9.3.9.v20160517'
+}
+
+
+task run(type: SpawnProcessTask, dependsOn: jar) {
+    command "${Jvm.current().javaExecutable} -classpath ${configurations.runtime.files.absolutePath.join(':')}:${jar.archivePath} org.gradle.mavenrepo.JettyMavenRepo ${file('../mavenRepo').absolutePath}"
+    ready 'Serving Repository from'
+    directory '/tmp'
+    pidLockFileName ".lock.${UUID.randomUUID()}.pid"
+}

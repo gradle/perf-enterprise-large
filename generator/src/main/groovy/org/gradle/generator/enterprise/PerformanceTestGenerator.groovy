@@ -165,11 +165,9 @@ class PerformanceTestGenerator {
 
             addGeneratedMavenRepoToAllProjects(output)
 
-            appendStartMavenRepoTask(output)
-
             output.println 'allprojects { project ->'
 
-            output.println "apply plugin: 'idea'"
+            output.println "    apply plugin: 'idea'"
 
             output.println '}'
 
@@ -195,7 +193,6 @@ allprojects { project ->
         maven {
             url mavenRepoUrl
             mavenLocal()
-            mavenCentral() // used for junit
         }
     }
 }
@@ -239,25 +236,17 @@ apply plugin:'java'
 
     private void appendStartMavenRepoTask(PrintWriter output) {
         output << '''
-import org.gradle.plugins.javascript.envjs.http.simple.SimpleHttpFileServerFactory
-
-boolean skipStarting = false
-task startMavenRepo {
-    doFirst {
-        try {
-            if (!skipStarting) {
-                SimpleHttpFileServerFactory factory = new SimpleHttpFileServerFactory()
-                def mavenRepo = rootProject.file("mavenRepo")
-                println "Starting server for ${mavenRepo}"
-                HttpFileServer server = factory.start(mavenRepo, 8000)
-                println "Started ${server.getResourceUrl('/')}"
-            }
-        } catch (e) {
-            // ignore
-            skipStarting = true
-        }
+gradle.projectsLoaded {
+   def process = ["./gradlew", "run"].execute(null, file("maven-server"))
+   process.waitFor()
+}
+gradle.buildFinished {
+    try {
+       new URL('http://localhost:8000/stop').text
+    } catch (e) {
     }
 }
+
 '''
     }
 
@@ -265,7 +254,6 @@ task startMavenRepo {
         output << '''
         task resolveDependencies {
             dependsOn configurations
-            dependsOn ':startMavenRepo'
             // Need this to ensure that configuration is actually resolved
             doLast {
                 configurations.each {
@@ -340,6 +328,7 @@ task startMavenRepo {
     private void generateSettingsFile(projectNames) {
         def settingsFile = new File(outputDir, 'settings.gradle')
         settingsFile.withPrintWriter { out ->
+            appendStartMavenRepoTask(out)
             out.println("include([${projectNames.collect { "'${it}'" }.join(', ')}] as String[])")
         }
     }
