@@ -21,6 +21,7 @@ dependencies {
     testCompile 'junit:junit:4.12'
 
     mirror 'junit:junit:4.12'
+    mirror 'org.hamcrest:hamcrest-parent:1.3'
 }
 
 task mirrorDependencies(type: OfflineMavenRepository) {
