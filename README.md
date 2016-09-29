@@ -10,15 +10,13 @@ $> cd perf-enterprise-large
 
 From here you need to run the generation script. It takes about 30 seconds to do it's work.
 ```sh
-$> cd generator
-$> ./gradlew run
+$> ./setup.sh
 ```
 
-At this point, you should be able to pop back up to the top level and run the build.
+At this point, you should be able to run the build.
 
 ```sh
-$> cd ../
-$> gradle --refresh-dependencies resolveDependencies
+$> gradle -g gradle-user-home resolveDependencies
 ```
 
 ## Integrated profiling tools
