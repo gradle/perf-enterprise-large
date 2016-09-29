@@ -236,15 +236,19 @@ apply plugin:'java'
 
     private void appendStartMavenRepoTask(PrintWriter output) {
         output << '''
-gradle.projectsLoaded {
-   def process = ["./gradlew", "run"].execute(null, file("maven-server"))
-   process.waitFor()
-}
-gradle.buildFinished {
+def stopMavenServer() {
     try {
        new URL('http://localhost:8000/stop').text
     } catch (e) {
     }
+}
+gradle.projectsLoaded {
+    stopMavenServer()
+    def process = ["./gradlew", "run"].execute(null, file("maven-server"))
+    process.waitFor()
+}
+gradle.buildFinished {
+    stopMavenServer()
 }
 
 '''
