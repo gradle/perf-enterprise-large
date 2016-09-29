@@ -19,6 +19,19 @@ At this point, you should be able to run the build.
 $> gradle -g gradle-user-home resolveDependencies
 ```
 
+## Testing downloading
+
+Remove the `gradle-user-home` directory and create a new one to test downloading from a clean state.
+```sh
+$> rm -rf gradle-user-home
+$> mkdir gradle-user-home
+```
+
+Make sure to pass `-g gradle-user-home` to the gradle command.
+```sh
+$> gradle -g gradle-user-home resolveDependencies
+```
+
 ## Integrated profiling tools
 
 Use profiling scripts from [perf-native-large](https://github.com/gradle/perf-native-large).
