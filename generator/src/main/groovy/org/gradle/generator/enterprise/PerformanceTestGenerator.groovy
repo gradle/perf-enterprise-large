@@ -244,7 +244,7 @@ def stopMavenServer() {
 }
 gradle.projectsLoaded {
     stopMavenServer()
-    def process = ["./gradlew", "run"].execute(null, file("maven-server"))
+    def process = ["${gradle.gradleHomeDir}/bin/gradle", '-g', file("maven-server/gradleHomeDir").absolutePath, "run"].execute(null, file("maven-server"))
     process.consumeProcessOutput(System.out, System.err)
     process.waitFor()
 }
