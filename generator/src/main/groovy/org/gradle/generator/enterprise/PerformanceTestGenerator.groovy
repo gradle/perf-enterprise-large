@@ -159,7 +159,7 @@ class PerformanceTestGenerator {
     }
 
     private void generateRootBuildFile() {
-        def rootBuildFile = new File(outputDir, 'build.gradle')
+        def rootBuildFile = new File(outputDir, 'build.gradle').canonicalFile
         println "Generating root build file ${rootBuildFile.absolutePath}"
         rootBuildFile.withPrintWriter { output ->
             renderApplyRootPlugins(output)
@@ -330,7 +330,7 @@ gradle.buildFinished {
     }
 
     private void generateSettingsFile(projectNames) {
-        def settingsFile = new File(outputDir, 'settings.gradle')
+        def settingsFile = new File(outputDir, 'settings.gradle').canonicalFile
         println "Generating settings file ${settingsFile.absolutePath}"
         settingsFile.withPrintWriter { out ->
             appendStartMavenRepoTask(out)
