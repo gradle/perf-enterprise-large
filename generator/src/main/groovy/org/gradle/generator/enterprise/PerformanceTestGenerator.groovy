@@ -335,8 +335,18 @@ gradle.buildFinished {
         println "Generating settings file ${settingsFile.absolutePath}"
         settingsFile.withPrintWriter { out ->
             appendStartMavenRepoTask(out)
+            appendCreatePidFile(out)
             out.println("include([${projectNames.collect { "'${it}'" }.join(', ')}] as String[])")
         }
+    }
+
+    def appendCreatePidFile(PrintWriter out) {
+        out << '''
+import java.lang.management.ManagementFactory
+
+new File(rootDir, 'gradle.pid').text = ManagementFactory.getRuntimeMXBean().getName().split('@')[0]
+'''
+
     }
 
     private void generateMavenRepository() {
