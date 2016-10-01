@@ -13,3 +13,6 @@ build/
 /build.gradle
 /mavenRepo/
 /gradle-user-home/
+
+# ignore gradle.properties file
+/gradle.properties
