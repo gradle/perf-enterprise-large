@@ -1,0 +1,25 @@
+allprojects {
+    apply plugin: "idea"
+
+    idea.project?.ipr?.withXml { provider ->
+        def node = provider.asNode()
+        
+        def compilerConfig = node?.component?.find { it.'@name' == 'CompilerConfiguration' }
+        
+        // increase the maximum heap size of Idea's compiler process
+        compilerConfig.appendNode('option', [name: 'BUILD_PROCESS_HEAP_SIZE', value: '2048'])
+        
+        // replace with annotation processing settings for IDEA 2016
+        def annotationProcessingNode = compilerConfig.annotationProcessing.find { it }
+        if (annotationProcessingNode) {
+            annotationProcessingNode.parent().remove(annotationProcessingNode)
+        }
+        compilerConfig.append(new XmlParser().parseText('''
+    <annotationProcessing>
+      <profile default="true" name="Default" enabled="true">
+        <processorPath useClasspath="true" />
+      </profile>
+    </annotationProcessing>
+'''))
+    }
+}

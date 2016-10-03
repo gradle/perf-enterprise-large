@@ -166,11 +166,7 @@ class PerformanceTestGenerator {
 
             addGeneratedMavenRepoToAllProjects(output)
 
-            output.println 'allprojects { project ->'
-
-            output.println "    apply plugin: 'idea'"
-
-            output.println '}'
+            output.println "apply from: 'gradle/idea.gradle'"
 
             output.println 'subprojects { project ->'
 
