@@ -316,6 +316,9 @@ gradle.buildFinished {
             }
             if (configurations || configurationDependencies) {
                 out.println("dependencies {")
+                out.println("compile 'org.slf4j:slf4j-api:1.7.21'");
+                out.println("compile 'org.slf4j:slf4j-simple:1.7.21'");
+                out.println("compileOnly 'org.projectlombok:lombok:1.16.10'");
                 out.println("testCompile 'junit:junit:4.12'")
                 configurationDependencies.each { configurationName, deps ->
                     deps.each { dep ->

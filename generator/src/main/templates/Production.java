@@ -1,9 +1,20 @@
 package ${packageName};
 
+import lombok.Getter;
+import lombok.Setter;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+import lombok.NonNull;
+
+@Slf4j
+@ToString
+@EqualsAndHashCode
 public class ${productionClassName} {
     private final String property;
 
-    public ${productionClassName}(String param) {
+    public ${productionClassName}(@NonNull String param) {
+        log.debug("Initialized ${productionClassName} with property='{}'", param);
         this.property = param;
     }
 
@@ -11,14 +22,6 @@ public class ${productionClassName} {
         return property;
     }
 <% propertyCount.times { %>
-    private String prop${it};
-
-    public String getProp${it}() {
-        return prop${it};
-    }
-
-    public void setProp${it}(String value) {
-        prop${it} = value;
-    }
+    @Getter @Setter private String prop${it};
 <% } %>
 }
