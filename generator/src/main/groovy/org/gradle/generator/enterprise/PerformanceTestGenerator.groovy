@@ -305,7 +305,18 @@ gradle.buildFinished {
         File buildFile = new File(projectDir, "build.gradle")
         buildFile.withPrintWriter { out ->
             if (configurations || configurationDependencies) {
-                out.println("apply plugin:'java'")
+                out << '''
+apply plugin:'java'
+
+tasks.withType(JavaCompile) {
+    options.fork = true
+    configure(options.forkOptions) {
+        memoryMaximumSize = '1536m'
+        memoryInitialSize = '512m'
+        jvmArgs = ['-Xverify:none', '-XX:+UseConcMarkSweepGC', '-XX:+ParallelRefProcEnabled', '-XX:+PerfDisableSharedMem']
+    }
+}
+'''
             }
             if (configurations) {
                 out.println("configurations {")
