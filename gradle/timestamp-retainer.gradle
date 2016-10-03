@@ -1,0 +1,38 @@
+import org.gradle.api.internal.changedetection.state.*
+
+def fileSnapshotter = project.services.get(org.gradle.api.internal.changedetection.state.FileSnapshotter)
+def stringInterner = project.services.get(org.gradle.api.internal.cache.StringInterner)
+def fileSystem = project.services.get(org.gradle.internal.nativeintegration.filesystem.FileSystem)
+def directoryFileTreeFactory = project.services.get(org.gradle.api.internal.file.collections.DirectoryFileTreeFactory)
+def instantiator = project.services.get(org.gradle.internal.reflect.Instantiator)
+def snapshotter = instantiator.newInstance(DefaultFileCollectionSnapshotter, fileSnapshotter, stringInterner, fileSystem, directoryFileTreeFactory)
+
+// Need to make `FileHashSnapshot.lastModified` accessible
+Class.forName("org.gradle.api.internal.changedetection.state.FileHashSnapshot").getDeclaredField("lastModified").setAccessible(true)
+
+project.convention.plugins.put("timestampRetainer", new Object() {
+	public Action<? super Task> retainTimestamps() {
+		return { task ->
+			task.ext.outputSnapshots = snapshotter.snapshot(task.outputs.files, TaskFilePropertyCompareStrategy.OUTPUT, TaskFilePropertySnapshotNormalizationStrategy.ABSOLUTE).snapshots
+			println "Collected ${task.ext.outputSnapshots.size()} timestamps"
+		}
+	}
+
+	public Action<? super Task> restoreTimestamps() {
+		return { task ->
+			def counter = 0
+			def previousSnapshots = task.ext.outputSnapshots
+			def currentSnapshots = snapshotter.snapshot(task.outputs.files, TaskFilePropertyCompareStrategy.OUTPUT, TaskFilePropertySnapshotNormalizationStrategy.ABSOLUTE).snapshots
+			currentSnapshots.each { path, currentSnapshot ->
+				def previousSnapshot = previousSnapshots[path]
+				if (previousSnapshot
+						&& previousSnapshot.snapshot.getClass().getName() == "org.gradle.api.internal.changedetection.state.FileHashSnapshot"
+						&& previousSnapshot.snapshot.isContentUpToDate(currentSnapshot.snapshot)) {
+					new File(path).setLastModified(previousSnapshot.snapshot.lastModified)
+					counter++
+				}
+			}
+			println "Restored ${counter} timestamps"
+		}
+	}
+})
