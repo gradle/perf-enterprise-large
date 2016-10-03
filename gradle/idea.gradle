@@ -1,16 +1,6 @@
-if(project.hasProperty('retainTimestamps')) {
-    apply from: "$rootDir/gradle/timestamp-retainer.gradle"
-}
 allprojects {
     apply plugin: "idea"
     
-    if(project.hasProperty('retainTimestamps')) {
-        tasks.withType(XmlGeneratorTask) { task ->
-            task.doFirst(retainTimestamps())
-            task.doLast(restoreTimestamps())
-        }
-    }
-
     idea.project?.ipr?.withXml { provider ->
         def node = provider.asNode()
         

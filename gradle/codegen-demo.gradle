@@ -1,0 +1,43 @@
+if(project.hasProperty('codegenDemo')) {
+    if(project.hasProperty('retainTimestamps')) {
+        apply from: "$rootDir/gradle/timestamp-retainer.gradle"
+    }
+
+    allprojects { project ->
+        // add generated source directory to main sourceset
+        sourceSets {
+            main {
+                java {
+                    srcDir project.file('src/generated/java')
+                }
+            }
+        }
+
+        task codegen {
+            outputs.dir(project.file('src/generated/java'))
+            outputs.cacheIf { true }
+            doLast {
+               10.times { pkgIdx ->
+                  def pkg = "pkg$pkgIdx"
+                  500.times {
+                      def src = project.file("src/generated/java/$pkg/Foo${it}.java")
+                      src.parentFile.mkdirs()
+                      src.text = """package $pkg;
+                    
+        public class Foo$it {
+
+           ${(0..1000).collect { "   public int x$it;"}.join('\n') }
+
+           }"""
+                  }
+               }
+            }
+            if(project.hasProperty('retainTimestamps')) {
+                doFirst(retainTimestamps())
+                doLast(restoreTimestamps())
+            }
+        }
+
+        tasks.idea.dependsOn codegen
+    }
+}
