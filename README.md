@@ -13,8 +13,12 @@ From here you need to run the generation script. It takes about 30 seconds to do
 $> ./setup.sh
 ```
 
-At this point, you should be able to run the build.
+Copy `gradle.properties.sample` as `gradle.properties`
+```sh
+$> cp gradle.properties.sample gradle.properties
+```
 
+At this point, you should be able to run the build.
 ```sh
 $> gradle -g gradle-user-home resolveDependencies
 ```
