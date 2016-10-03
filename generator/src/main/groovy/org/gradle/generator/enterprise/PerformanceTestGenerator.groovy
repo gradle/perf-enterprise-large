@@ -127,7 +127,7 @@ class PerformanceTestGenerator {
         int avgloc = loc / files
         // Production.java template has propertyCount argument
         // each property creates 5 source code lines
-        int propertyCount = (avgloc - 9) / 5
+        int propertyCount = Math.min((int)((avgloc - 9) / 5), 10) // limit to 10 properties per file since Lombok is used
 
         List<Map> generatedJavaClassInfos = []
 
@@ -316,6 +316,9 @@ gradle.buildFinished {
             }
             if (configurations || configurationDependencies) {
                 out.println("dependencies {")
+                out.println("compile 'org.slf4j:slf4j-api:1.7.21'");
+                out.println("compile 'org.slf4j:slf4j-simple:1.7.21'");
+                out.println("compileOnly 'org.projectlombok:lombok:1.16.10'");
                 out.println("testCompile 'junit:junit:4.12'")
                 configurationDependencies.each { configurationName, deps ->
                     deps.each { dep ->
