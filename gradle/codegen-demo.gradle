@@ -19,14 +19,14 @@ if(project.hasProperty('codegenDemo')) {
             doLast {
                10.times { pkgIdx ->
                   def pkg = "pkg$pkgIdx"
-                  500.times {
+                  50.times {
                       def src = project.file("src/generated/java/$pkg/Foo${it}.java")
                       src.parentFile.mkdirs()
                       src.text = """package $pkg;
                     
         public class Foo$it {
 
-           ${(0..1000).collect { "   public int x$it;"}.join('\n') }
+           ${(0..10).collect { "   public int x$it;"}.join('\n') }
 
            }"""
                   }
