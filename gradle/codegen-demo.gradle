@@ -15,7 +15,8 @@ if(project.hasProperty('codegenDemo')) {
         
         idea {
             module {
-                sourceDirs += project.file('src/generated/java')
+                // workaround to add src/generated/java and src/main/java as source folders
+                sourceDirs = [project.file('src/generated/java'), project.file('src/main/java')]
             }
         }
 
