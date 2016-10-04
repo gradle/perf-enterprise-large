@@ -10,6 +10,7 @@ class PerformanceTestGenerator {
     File jsonFile
     File outputDir
     File templateDir
+    double sizeFactor = 1.0d // use to scale generated project size
     GavMapper gavMapper = new GavMapper()
     Collection<String> defaultConfigurationNames = ['compile', 'testCompile', 'compileOnly', 'testCompileOnly', 'runtime', 'testRuntime',
                                                     'default', 'archives',
@@ -86,11 +87,15 @@ class PerformanceTestGenerator {
     }
 
     private void createJavaTestSources(File projectDir, testSourceSet, project, List<Map> generatedJavaClassInfos) {
+        if (!testSourceSet.sourceFileCounts.java) {
+            return
+        }
+
         File sourceDir = new File(projectDir, 'src/test/java')
         sourceDir.mkdirs()
 
-        int loc = testSourceSet.loc.java
-        int files = testSourceSet.sourceFileCounts.java
+        int loc = scaleValue(testSourceSet.loc.java, 1)
+        int files = scaleValue(testSourceSet.sourceFileCounts.java, 1)
         int avgloc = loc / files
         int testMethodCount = (avgloc - 5) / 4
 
@@ -116,13 +121,33 @@ class PerformanceTestGenerator {
         }
     }
 
+    private int scaleValue(int referenceValue, int minValue, int maxValue) {
+        Math.max(scaleValue(Math.min(referenceValue, maxValue)), minValue)
+    }
+
+    private int scaleValue(int referenceValue, int minValue) {
+        Math.max(scaleValue(referenceValue), minValue)
+    }
+
+    private int scaleValue(int referenceValue) {
+        if (sizeFactor != 1.0d) {
+            referenceValue * sizeFactor
+        } else {
+            referenceValue
+        }
+    }
+
     private List<Map> createJavaSources(File projectDir, mainSourceSet, project) {
+        if (!mainSourceSet.sourceFileCounts.java) {
+            return []
+        }
+
         File sourceDir = new File(projectDir, 'src/main/java')
         sourceDir.mkdirs()
 
-        int loc = mainSourceSet.loc.java
-        int files = mainSourceSet.sourceFileCounts.java
-        int packages = mainSourceSet.packagesPerExtension.java
+        int loc = scaleValue(mainSourceSet.loc.java, 1)
+        int files = scaleValue(mainSourceSet.sourceFileCounts.java, 1)
+        int packages = scaleValue(mainSourceSet.packagesPerExtension.java, 1)
 
         int avgloc = loc / files
         // Production.java template has propertyCount argument
@@ -542,7 +567,11 @@ new File(rootDir, 'gradle.pid').text = ManagementFactory.getRuntimeMXBean().getN
     }
 
     static void main(String[] args) {
-        def generator = new PerformanceTestGenerator(jsonFile: new File('buildsizeinfo.json'), outputDir: new File('..'), templateDir: new File('src/main/templates'))
+        double sizeFactor = 1.0d
+        if (args.length > 0) {
+            sizeFactor = Double.parseDouble(args[0])
+        }
+        def generator = new PerformanceTestGenerator(jsonFile: new File('buildsizeinfo.json'), outputDir: new File('..'), templateDir: new File('src/main/templates'), sizeFactor: sizeFactor)
         generator.generate()
     }
 }
