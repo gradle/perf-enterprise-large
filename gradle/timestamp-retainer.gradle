@@ -11,28 +11,31 @@ def snapshotter = instantiator.newInstance(DefaultFileCollectionSnapshotter, fil
 Class.forName("org.gradle.api.internal.changedetection.state.FileHashSnapshot").getDeclaredField("lastModified").setAccessible(true)
 
 project.convention.plugins.put("timestampRetainer", new Object() {
-	public Action<? super Task> retainTimestamps() {
-		return { task ->
-			task.ext.outputSnapshots = snapshotter.snapshot(task.outputs.files, TaskFilePropertyCompareStrategy.OUTPUT, TaskFilePropertySnapshotNormalizationStrategy.ABSOLUTE).snapshots
-			println "Collected ${task.ext.outputSnapshots.size()} timestamps"
-		}
-	}
+    public Action<? super Task> retainTimestamps() {
+        return { task ->
+            task.ext.outputSnapshots = snapshotter.snapshot(task.outputs.files, TaskFilePropertyCompareStrategy.OUTPUT, TaskFilePropertySnapshotNormalizationStrategy.ABSOLUTE).snapshots
+            println "Collected ${task.ext.outputSnapshots.size()} timestamps"
+        }
+    }
 
-	public Action<? super Task> restoreTimestamps() {
-		return { task ->
-			def counter = 0
-			def previousSnapshots = task.ext.outputSnapshots
-			def currentSnapshots = snapshotter.snapshot(task.outputs.files, TaskFilePropertyCompareStrategy.OUTPUT, TaskFilePropertySnapshotNormalizationStrategy.ABSOLUTE).snapshots
-			currentSnapshots.each { path, currentSnapshot ->
-				def previousSnapshot = previousSnapshots[path]
-				if (previousSnapshot
-						&& previousSnapshot.snapshot.getClass().getName() == "org.gradle.api.internal.changedetection.state.FileHashSnapshot"
-						&& previousSnapshot.snapshot.isContentUpToDate(currentSnapshot.snapshot)) {
-					new File(path).setLastModified(previousSnapshot.snapshot.lastModified)
-					counter++
-				}
-			}
-			println "Restored ${counter} timestamps"
-		}
-	}
+    public Action<? super Task> restoreTimestamps(int percentage) {
+        return { task ->
+            int counter = 0
+            def previousSnapshots = task.ext.outputSnapshots
+            def currentSnapshots = snapshotter.snapshot(task.outputs.files, TaskFilePropertyCompareStrategy.OUTPUT, TaskFilePropertySnapshotNormalizationStrategy.ABSOLUTE).snapshots
+            int limit = percentage > 0 && percentage < 100 ? (percentage / 100) * currentSnapshots.size() : -1
+            currentSnapshots.each { path, currentSnapshot ->
+                if(counter < limit || limit < 0) {
+                    def previousSnapshot = previousSnapshots[path]
+                    if (previousSnapshot
+                            && previousSnapshot.snapshot.getClass().getName() == "org.gradle.api.internal.changedetection.state.FileHashSnapshot"
+                            && previousSnapshot.snapshot.isContentUpToDate(currentSnapshot.snapshot)) {
+                        new File(path).setLastModified(previousSnapshot.snapshot.lastModified)
+                        counter++
+                    }
+                }
+            }
+            println "Restored ${counter} timestamps (limit ${percentage}%)"
+        }
+    }
 })

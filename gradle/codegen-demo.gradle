@@ -34,7 +34,12 @@ if(project.hasProperty('codegenDemo')) {
             }
             if(project.hasProperty('retainTimestamps')) {
                 doFirst(retainTimestamps())
-                doLast(restoreTimestamps())
+                int retainTimestampsPercentage = 100
+                def retainTimestampsPercentageString = project.property('retainTimestamps')
+                if(retainTimestampsPercentageString) {
+                    retainTimestampsPercentage = retainTimestampsPercentageString as Integer
+                }
+                doLast(restoreTimestamps(retainTimestampsPercentage))
             }
         }
 
