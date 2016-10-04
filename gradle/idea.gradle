@@ -7,7 +7,7 @@ allprojects {
         def compilerConfig = node?.component?.find { it.'@name' == 'CompilerConfiguration' }
         
         // increase the maximum heap size of Idea's compiler process
-        compilerConfig.appendNode('option', [name: 'BUILD_PROCESS_HEAP_SIZE', value: '2048'])
+        compilerConfig.appendNode('option', [name: 'BUILD_PROCESS_HEAP_SIZE', value: '4096'])
         
         // replace with annotation processing settings for IDEA 2016
         def annotationProcessingNode = compilerConfig.annotationProcessing.find { it }
