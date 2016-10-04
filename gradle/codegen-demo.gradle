@@ -12,6 +12,12 @@ if(project.hasProperty('codegenDemo')) {
                 }
             }
         }
+        
+        idea {
+            module {
+                sourceDirs += project.file('src/generated/java')
+            }
+        }
 
         task codegen {
             outputs.dir(project.file('src/generated/java'))
