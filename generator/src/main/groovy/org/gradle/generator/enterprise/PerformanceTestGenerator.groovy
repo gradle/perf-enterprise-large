@@ -66,7 +66,7 @@ class PerformanceTestGenerator {
 
         generateMavenRepository()
 
-        println "Creating Java sources and test files..."
+        println "Creating Java sources and test files... project size factor is ${sizeFactor}"
         generateJavaSourceFiles()
         println "Done."
     }

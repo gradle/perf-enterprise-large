@@ -34,7 +34,12 @@ task mirrorDependencies(type: OfflineMavenRepository) {
 }
 
 run {
+    if (project.hasProperty('projectSizeFactor')) {
+        logger.lifecycle "Passing project size factor ${project.property('projectSizeFactor')}"
+        args project.property('projectSizeFactor')
+    }
     if (project.hasProperty('appArgs')) {
+        logger.lifecycle "appArgs is deprecated, use projectSizeFactor to pass the argument"
         args project.property('appArgs').split(',')
     }
 }
