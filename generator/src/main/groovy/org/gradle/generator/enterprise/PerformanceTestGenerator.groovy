@@ -19,6 +19,9 @@ class PerformanceTestGenerator {
     // project names of all sub projects
     List<String> projectNames = []
 
+    // JSON of all java projects
+    List<Map> javaProjects = []
+
     // all exclude rules found in all projects
     Set<List<Map>> allExcludedRules = [] as Set
     // all force modules rules found in all projects
@@ -70,18 +73,13 @@ class PerformanceTestGenerator {
 
 
     void generateJavaSourceFiles() {
-        buildSizeJson.projects.each { project ->
+        javaProjects.each { project ->
             if (project.name != 'project_root') {
                 def projectDir = new File(outputDir, project.name)
-                List<Map> generatedJavaClassInfos
                 def mainSourceSet = project.sourceSets?.find { it.name == 'main' }
-                if (mainSourceSet?.loc?.java) {
-                    generatedJavaClassInfos = createJavaSources(projectDir, mainSourceSet, project)
-                }
+                List<Map> generatedJavaClassInfos = createJavaSources(projectDir, mainSourceSet, project)
                 def testSourceSet = project.sourceSets?.find { it.name == 'test' }
-                if (testSourceSet?.loc?.java) {
-                    createJavaTestSources(projectDir, testSourceSet, project, generatedJavaClassInfos)
-                }
+                createJavaTestSources(projectDir, testSourceSet, project, generatedJavaClassInfos)
             }
         }
     }
@@ -97,7 +95,7 @@ class PerformanceTestGenerator {
         int loc = scaleValue(testSourceSet.loc.java, 1)
         int files = scaleValue(testSourceSet.sourceFileCounts.java, 1)
         int avgloc = loc / files
-        int testMethodCount = (avgloc - 5) / 4
+        int testMethodCount = Math.max((int) ((avgloc - 5) / 4), 1)
 
         int count = 0
         for (Map javaClassInfo : generatedJavaClassInfos) {
@@ -138,10 +136,6 @@ class PerformanceTestGenerator {
     }
 
     private List<Map> createJavaSources(File projectDir, mainSourceSet, project) {
-        if (!mainSourceSet.sourceFileCounts.java) {
-            return []
-        }
-
         File sourceDir = new File(projectDir, 'src/main/java')
         sourceDir.mkdirs()
 
@@ -152,7 +146,8 @@ class PerformanceTestGenerator {
         int avgloc = loc / files
         // Production.java template has propertyCount argument
         // each property creates 5 source code lines
-        int propertyCount = Math.min((int)((avgloc - 9) / 5), 10) // limit to 10 properties per file since Lombok is used
+        // limit to 10 properties per file since Lombok is used
+        int propertyCount = Math.min(Math.max((int) ((avgloc - 9) / 5), 1), 10)
 
         List<Map> generatedJavaClassInfos = []
 
@@ -300,11 +295,6 @@ gradle.buildFinished {
     }
 
     private void generateSubProject(project) {
-        projectNames << project.name
-        println project.name
-        File projectDir = new File(outputDir, project.name)
-        projectDir.mkdir()
-
         Map<String, Collection<Map>> configurationDependencies = [:]
         Map<String, Map> configurations = [:]
 
@@ -323,6 +313,18 @@ gradle.buildFinished {
                 configurationDependencies.put(configuration.name, configuration.dependencies)
             }
         }
+
+        if (!(configurations || configurationDependencies
+                || project.sourceSets?.find { it.name == 'main' }?.loc?.java)) {
+            println "Skipping non-Java project ${project.name}"
+            return
+        }
+
+        projectNames << project.name
+        javaProjects << project
+        println project.name
+        File projectDir = new File(outputDir, project.name)
+        projectDir.mkdir()
 
         File buildFile = new File(projectDir, "build.gradle")
         buildFile.withPrintWriter { out ->
