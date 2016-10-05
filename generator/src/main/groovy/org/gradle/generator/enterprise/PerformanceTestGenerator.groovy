@@ -119,19 +119,19 @@ class PerformanceTestGenerator {
         }
     }
 
-    private int scaleValue(int referenceValue, int minValue, int maxValue) {
-        Math.max(scaleValue(Math.min(referenceValue, maxValue)), minValue)
+    private int scaleValue(Integer referenceValue, int minValue, int maxValue) {
+        Math.max(scaleValue(Math.min(referenceValue ?: 0, maxValue)), minValue)
     }
 
-    private int scaleValue(int referenceValue, int minValue) {
-        Math.max(scaleValue(referenceValue), minValue)
+    private int scaleValue(Integer referenceValue, int minValue) {
+        Math.max(scaleValue(referenceValue ?: 0), minValue)
     }
 
-    private int scaleValue(int referenceValue) {
+    private int scaleValue(Integer referenceValue) {
         if (sizeFactor != 1.0d) {
-            referenceValue * sizeFactor
+            referenceValue ?: 0 * sizeFactor
         } else {
-            referenceValue
+            referenceValue ?: 0
         }
     }
 
