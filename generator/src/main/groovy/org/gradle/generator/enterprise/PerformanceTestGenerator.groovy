@@ -386,7 +386,9 @@ tasks.withType(JavaCompile) {
         out << '''
 import java.lang.management.ManagementFactory
 
-new File(rootDir, 'gradle.pid').text = ManagementFactory.getRuntimeMXBean().getName().split('@')[0]
+def pidFile = new File(rootDir, 'gradle.pid')
+pidFile.deleteOnExit()
+pidFile.text = ManagementFactory.getRuntimeMXBean().getName().split('@')[0]
 '''
 
     }
