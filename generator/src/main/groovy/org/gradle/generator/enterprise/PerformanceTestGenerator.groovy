@@ -45,6 +45,8 @@ class PerformanceTestGenerator {
 
     TemplateEngine templateEngine
 
+    int generatedFilesCounter = 0
+
     void generate() {
         templateEngine = new TemplateEngine(dir: templateDir)
 
@@ -68,7 +70,7 @@ class PerformanceTestGenerator {
 
         println "Creating Java sources and test files... project size factor is ${sizeFactor}"
         generateJavaSourceFiles()
-        println "Done."
+        println "Done. Generated ${generatedFilesCounter} files."
     }
 
 
@@ -116,6 +118,7 @@ class PerformanceTestGenerator {
                     testMethodCount: testMethodCount
             ] + javaClassInfo
             classFile.withWriter { it << javaSourceTemplate.make(testClassInfo) }
+            generatedFilesCounter++
         }
     }
 
@@ -172,6 +175,7 @@ class PerformanceTestGenerator {
                     packagePath        : packagePath
             ]
             classFile.withWriter { it << javaSourceTemplate.make(classInfo) }
+            generatedFilesCounter++
             generatedJavaClassInfos << classInfo
         }
 
