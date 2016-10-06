@@ -222,7 +222,6 @@ allprojects { project ->
 
     private Writer renderApplyRootPlugins(PrintWriter output) {
         output << '''
-apply from: 'gradle/profiling.gradle'
 apply plugin:'java'
 '''
     }
@@ -377,7 +376,6 @@ tasks.withType(JavaCompile) {
         def settingsFile = new File(outputDir, 'settings.gradle').canonicalFile
         println "Generating settings file ${settingsFile.absolutePath}"
         settingsFile.withPrintWriter { out ->
-            out.println("apply from: 'gradle/profiling.gradle'")
             appendStartMavenRepoTask(out)
             appendCreatePidFile(out)
             out.println("include([${projectNames.collect { "'${it}'" }.join(', ')}] as String[])")
