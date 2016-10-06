@@ -129,7 +129,7 @@ class PerformanceTestGenerator {
 
     private int scaleValue(Integer referenceValue) {
         if (sizeFactor != 1.0d) {
-            referenceValue ?: 0 * sizeFactor
+            (referenceValue ?: 0) * sizeFactor
         } else {
             referenceValue ?: 0
         }
