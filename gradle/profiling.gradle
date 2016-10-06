@@ -1,0 +1,88 @@
+// include in both settings.gradle and the root project's build.gradle
+// starts JFR recording when `export GRADLE_JFR_LOG=1` has been set.
+// stops the JFR recording 5 seconds after the build completes.
+
+import javax.management.DynamicMBean
+import javax.management.MBeanException
+import javax.management.ReflectionException
+
+String jfrDump(String recordingName, File recordingFile) throws ReflectionException, MBeanException {
+    return callDiagnosticsMethod("jfrDump", "name=" + recordingName, "filename=" + recordingFile.getAbsolutePath())
+}
+
+String jfrStart(String recordingName, File settingsFile) throws ReflectionException, MBeanException {
+    return callDiagnosticsMethod("jfrStart", "name=" + recordingName, "settings=" + settingsFile.getAbsolutePath())
+}
+
+String jfrStart(String recordingName) throws ReflectionException, MBeanException {
+    return callDiagnosticsMethod("jfrStart", "name=" + recordingName, "settings=profile")
+}
+
+String jfrStop(String recordingName, File recordingFile) throws ReflectionException, MBeanException {
+    return callDiagnosticsMethod("jfrStop", "name=" + recordingName, "filename=" + recordingFile.getAbsolutePath())
+}
+
+String callDiagnosticsMethod(String actionName, String... args) throws MBeanException, ReflectionException {
+    Object[] dcmdArgs = [args] as Object[]
+    String[] signature = [String[].class.getName()] as String[]
+    DynamicMBean dcmd = getDiagnosticCommandMBean()
+    return (String) dcmd.invoke(actionName, dcmdArgs, signature)
+}
+
+DynamicMBean getDiagnosticCommandMBean() {
+    return sun.management.ManagementFactoryHelper.getDiagnosticCommandMBean()
+}
+
+File createRecordingFile(File basedir, String recordingName) {
+    new File(basedir, "${recordingName}-${new java.text.SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date())}.jfr").absoluteFile
+}
+
+if(System.getenv("GRADLE_JFR_LOG")) {
+    String recordingName = "${rootDir.name}-GradleProfiling"
+    File dumpLockFile = new File(rootDir, "${recordingName}.jfr.lock")
+    if(!hasProperty("project")) {
+        // when included in settings.gradle
+        int counter = 0
+        // wait until previous dump has been completed
+        while(dumpLockFile.exists()) {
+            Thread.sleep(500L)
+            if(counter++ > 10) {
+                break
+            }
+        }
+        if(!dumpLockFile.exists()) {
+            File settingsFile = new File(rootDir, "profiler/profiling.jfc")
+            if(settingsFile.exists()) {
+                System.out.println(jfrStart(recordingName, settingsFile))
+            } else {
+                System.out.println(jfrStart(recordingName))
+            }
+        } else {
+            System.out.println("Cannot start profiling since ${dumpLockFile} exists.")
+        }
+    } else {
+        File rootDir = project.rootDir
+        def dumpJfrLog = {
+            try {
+                dumpLockFile.text = 'locked'
+                System.out.println("Waiting 5 seconds before dumping...")
+                Thread.sleep(5000L)
+                def jfrLogFile = createRecordingFile(rootDir, recordingName)
+                System.out.println("Dumping JFR log to ${jfrLogFile}...")
+                System.out.println(jfrStop(recordingName, jfrLogFile))
+                System.out.println("Done. Waiting 5 seconds.")
+                Thread.sleep(5000L)
+                System.out.println("Done.")
+            } catch (Exception e) {
+                e.printStackTrace(System.err)
+            } finally {
+                dumpLockFile.delete()
+            }
+        }
+        gradle.buildFinished {
+            def dumpThread = new Thread(dumpJfrLog as Runnable)
+            dumpThread.daemon = false
+            dumpThread.start()
+        }
+    }
+}
