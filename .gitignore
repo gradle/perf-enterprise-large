@@ -16,3 +16,15 @@ build/
 
 # ignore gradle.properties file
 /gradle.properties
+
+# ignore gradle wrapper used for profiling
+gradle/wrapper/
+gradlew
+gradlew.bat
+
+# ignore some profiler files
+*.jfr
+*.jfr.svg
+*.jfr.jpg
+*.info.json
+*.info.txt
