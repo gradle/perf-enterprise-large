@@ -1,0 +1,5 @@
+org.gradle.parallel=true
+org.gradle.parallel.intra=true
+org.gradle.configureondemand=true
+org.gradle.jvmargs=-Xmx4g -Xverify:none -XX:+HeapDumpOnOutOfMemoryError -XX:+UnlockCommercialFeatures -XX:+FlightRecorder -XX:FlightRecorderOptions=stackdepth=1024 -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+PreserveFramePointer
+org.gradle.workers.max=3
