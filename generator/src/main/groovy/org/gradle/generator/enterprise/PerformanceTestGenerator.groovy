@@ -188,6 +188,8 @@ class PerformanceTestGenerator {
         rootBuildFile.withPrintWriter { output ->
             renderApplyRootPlugins(output)
 
+            renderApplyMeasurementPlugin(output)
+
             addGeneratedMavenRepoToAllProjects(output)
 
             output.println "apply from: 'gradle/idea.gradle'"
@@ -204,6 +206,12 @@ class PerformanceTestGenerator {
             output.println '}'
 
             output.println '}'
+
+            output << '''
+if(measurementPluginJar) {
+    org.gradle.performance.plugin.BuildEventTimeStamps.settingsEvaluated()
+}
+'''
         }
     }
 
@@ -223,6 +231,22 @@ allprojects { project ->
     private Writer renderApplyRootPlugins(PrintWriter output) {
         output << '''
 apply plugin:'java'
+'''
+    }
+
+    private Writer renderApplyMeasurementPlugin(PrintWriter output) {
+        output << '''
+def measurementPluginJar = project.hasProperty('measurementPluginJar') ? project.property('measurementPluginJar') : null
+buildscript {
+    dependencies {
+        if(measurementPluginJar) {
+            classpath files(measurementPluginJar)
+        }
+    }
+}
+if(measurementPluginJar) {
+    apply plugin: org.gradle.performance.plugin.MeasurementPlugin
+}
 '''
     }
 
