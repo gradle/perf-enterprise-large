@@ -208,7 +208,7 @@ class PerformanceTestGenerator {
             output.println '}'
 
             output << '''
-if(measurementPluginJar) {
+if(measurementPluginEnabled) {
     org.gradle.performance.plugin.BuildEventTimeStamps.settingsEvaluated()
 }
 '''
@@ -244,8 +244,8 @@ buildscript {
         }
     }
 }
-def measurementPluginJar = project.hasProperty('measurementPluginJar') ? project.property('measurementPluginJar') : null
-if(measurementPluginJar) {
+def measurementPluginEnabled = project.hasProperty('measurementPluginJar')
+if(measurementPluginEnabled) {
     apply plugin: org.gradle.performance.plugin.MeasurementPlugin
 }
 '''
