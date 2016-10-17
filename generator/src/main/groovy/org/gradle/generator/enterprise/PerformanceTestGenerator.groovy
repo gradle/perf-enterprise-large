@@ -236,14 +236,15 @@ apply plugin:'java'
 
     private Writer renderApplyMeasurementPlugin(PrintWriter output) {
         output << '''
-def measurementPluginJar = project.hasProperty('measurementPluginJar') ? project.property('measurementPluginJar') : null
 buildscript {
     dependencies {
+        def measurementPluginJar = project.hasProperty('measurementPluginJar') ? project.property('measurementPluginJar') : null
         if(measurementPluginJar) {
             classpath files(measurementPluginJar)
         }
     }
 }
+def measurementPluginJar = project.hasProperty('measurementPluginJar') ? project.property('measurementPluginJar') : null
 if(measurementPluginJar) {
     apply plugin: org.gradle.performance.plugin.MeasurementPlugin
 }
