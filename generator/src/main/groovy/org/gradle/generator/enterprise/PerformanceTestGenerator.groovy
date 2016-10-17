@@ -186,9 +186,9 @@ class PerformanceTestGenerator {
         def rootBuildFile = new File(outputDir, 'build.gradle').canonicalFile
         println "Generating root build file ${rootBuildFile.absolutePath}"
         rootBuildFile.withPrintWriter { output ->
-            renderApplyRootPlugins(output)
-
             renderApplyMeasurementPlugin(output)
+
+            renderApplyRootPlugins(output)
 
             addGeneratedMavenRepoToAllProjects(output)
 
