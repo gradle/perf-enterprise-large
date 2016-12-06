@@ -364,8 +364,8 @@ apply plugin:'java'
 tasks.withType(JavaCompile) {
     options.fork = true
     configure(options.forkOptions) {
-        memoryMaximumSize = '2g'
-        memoryInitialSize = '256m'
+        memoryMaximumSize = '512m'
+        memoryInitialSize = '512m'
         jvmArgs = ['-Xverify:none', '-XX:+UseConcMarkSweepGC', '-XX:+ParallelRefProcEnabled']
     }
 }
