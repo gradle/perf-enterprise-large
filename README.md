@@ -41,13 +41,8 @@ Enabling access logging for maven-server
 $> export MAVEN_SERVER_ACCESS_LOG=$PWD/maven-server.log
 ```
 
-## Integrated profiling tools
+## Benchmarking and profiling
 
-Use profiling scripts from [perf-native-large](https://github.com/gradle/perf-native-large).
+Use the Gradle profiler to `--benchmark` or `--profile` scenarios. The available scenarios are defined in `performance.scenarios`
 
-Add a symbolic link to the profiler directory
-```
-ln -s ../perf-native-large/profiler
-```
-
-[Follow instructions](https://github.com/gradle/perf-native-large#integrated-profiling-tools)
+Example usage: `./gradle-profiler --profile chrome-trace buildUpToDate`
