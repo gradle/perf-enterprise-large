@@ -1,4 +1,16 @@
-buildUpToDate {
-	tasks = ["build"]
+upToDateAssemble {
+	tasks = ["assemble"]
+	gradle-args = ["-PuseFileRepo=true"]
 }
 
+nonAbiChange {
+	tasks = ["assemble"]
+	apply-non-abi-change-to = "project_2dd5771b/src/main/java/com/enterprise/large/project_2dd5771b/package1/Production_project_2dd5771b_1.java"
+	gradle-args = ["-PuseFileRepo=true"]
+}
+
+abiChange {
+	tasks = ["assemble"]
+	apply-abi-change-to = "project_2dd5771b/src/main/java/com/enterprise/large/project_2dd5771b/package1/Production_project_2dd5771b_1.java"
+	gradle-args = ["-PuseFileRepo=true"]
+}

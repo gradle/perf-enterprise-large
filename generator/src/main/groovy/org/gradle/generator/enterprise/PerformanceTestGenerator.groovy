@@ -203,6 +203,14 @@ class PerformanceTestGenerator {
 
             appendResolveDependenciesTask(output)
 
+            output << """
+              if (gradle.gradleVersion >= "3.4") {
+                tasks.withType(JavaCompile) {
+                  options.annotationProcessorPath = configurations.apt
+                }
+              }
+            """
+
             output.println '}'
 
             output.println '}'
@@ -256,6 +264,10 @@ if(measurementPluginEnabled) {
         sharedConfigurations.each { name, configuration ->
             renderConfiguration(output, configuration)
         }
+        output << """
+          apt
+          compileClasspath.extendsFrom(apt)
+        """
         renderAllConfigurationsBlock(output)
         output.println("    }")
     }
@@ -288,16 +300,17 @@ def stopMavenServer() {
     } catch (e) {
     }
 }
-gradle.projectsLoaded {
-    stopMavenServer()
-    def process = ["${gradle.gradleHomeDir}/bin/gradle", '--no-daemon', '-g', file("maven-server/gradleHomeDir").absolutePath, "run"].execute(null, file("maven-server"))
-    process.consumeProcessOutput(System.out, System.err)
-    process.waitFor()
+if (!gradle.startParameter.projectProperties.useFileRepo) {
+  gradle.projectsLoaded {
+      stopMavenServer()
+      def process = ["${gradle.gradleHomeDir}/bin/gradle", '--no-daemon', '-g', file("maven-server/gradleHomeDir").absolutePath, "run"].execute(null, file("maven-server"))
+      process.consumeProcessOutput(System.out, System.err)
+      process.waitFor()
+  }
+  gradle.buildFinished {
+      stopMavenServer()
+  }
 }
-gradle.buildFinished {
-    stopMavenServer()
-}
-
 '''
     }
 
@@ -382,7 +395,7 @@ tasks.withType(JavaCompile) {
                 out.println("dependencies {")
                 out.println("compile 'org.slf4j:slf4j-api:1.7.21'");
                 out.println("compile 'org.slf4j:slf4j-simple:1.7.21'");
-                out.println("compileOnly 'org.projectlombok:lombok:1.16.10'");
+                out.println("apt 'org.projectlombok:lombok:1.16.10'");
                 out.println("testCompile 'junit:junit:4.12'")
                 configurationDependencies.each { configurationName, deps ->
                     deps.each { dep ->
