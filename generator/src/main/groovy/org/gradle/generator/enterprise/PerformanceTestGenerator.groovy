@@ -316,11 +316,12 @@ if (!gradle.startParameter.projectProperties.useFileRepo) {
 
     private void appendResolveDependenciesTask(PrintWriter output) {
         output << '''
+        def resolvableConfigurations = configurations.findAll { it.canBeResolved }
         task resolveDependencies {
-            dependsOn configurations
+            dependsOn resolvableConfigurations
             // Need this to ensure that configuration is actually resolved
             doLast {
-                configurations.each {
+                resolvableConfigurations.each {
                     println "project: ${project.path} configuration: ${it.name} size: ${it.files.size()}"
                 }
             }
