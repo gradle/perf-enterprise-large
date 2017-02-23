@@ -22,7 +22,7 @@ dependencies {
 
     mirror 'junit:junit:4.12'
     mirror 'org.hamcrest:hamcrest-parent:1.3'
-    mirror 'org.projectlombok:lombok:1.16.10'
+    mirror 'org.projectlombok:lombok:1.16.14'
     mirror 'org.slf4j:slf4j-api:1.7.21'
     mirror 'org.slf4j:slf4j-simple:1.7.21'
     mirror 'org.slf4j:slf4j-parent:1.7.21'

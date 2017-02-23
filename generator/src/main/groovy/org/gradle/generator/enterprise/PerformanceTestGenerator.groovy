@@ -396,7 +396,7 @@ tasks.withType(JavaCompile) {
                 out.println("dependencies {")
                 out.println("compile 'org.slf4j:slf4j-api:1.7.21'");
                 out.println("compile 'org.slf4j:slf4j-simple:1.7.21'");
-                out.println("apt 'org.projectlombok:lombok:1.16.10'");
+                out.println("apt 'org.projectlombok:lombok:1.16.14'");
                 out.println("testCompile 'junit:junit:4.12'")
                 configurationDependencies.each { configurationName, deps ->
                     deps.each { dep ->
