@@ -203,14 +203,6 @@ class PerformanceTestGenerator {
 
             appendResolveDependenciesTask(output)
 
-            output << """
-              if (gradle.gradleVersion >= "3.4") {
-                tasks.withType(JavaCompile) {
-                  options.annotationProcessorPath = configurations.apt
-                }
-              }
-            """
-
             output.println '}'
 
             output.println '}'
@@ -264,10 +256,6 @@ if(measurementPluginEnabled) {
         sharedConfigurations.each { name, configuration ->
             renderConfiguration(output, configuration)
         }
-        output << """
-          apt
-          compileClasspath.extendsFrom(apt)
-        """
         renderAllConfigurationsBlock(output)
         output.println("    }")
     }
@@ -317,7 +305,7 @@ if (!gradle.startParameter.projectProperties.useFileRepo) {
     private void appendResolveDependenciesTask(PrintWriter output) {
         output << '''
         def resolvableConfigurations = configurations.findAll { it.canBeResolved }
-        task resolveDependencies {
+        tasks.register("resolveDependencies") {
             dependsOn resolvableConfigurations
             // Need this to ensure that configuration is actually resolved
             doLast {
@@ -375,7 +363,7 @@ if (!gradle.startParameter.projectProperties.useFileRepo) {
                 out << '''
 apply plugin:'java'
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.fork = true
     configure(options.forkOptions) {
         memoryMaximumSize = '2g'
@@ -396,7 +384,7 @@ tasks.withType(JavaCompile) {
                 out.println("dependencies {")
                 out.println("compile 'org.slf4j:slf4j-api:1.7.21'");
                 out.println("compile 'org.slf4j:slf4j-simple:1.7.21'");
-                out.println("apt 'org.projectlombok:lombok:1.16.14'");
+                out.println("annotationProcessor 'org.projectlombok:lombok:1.16.14'");
                 out.println("testCompile 'junit:junit:4.12'")
                 configurationDependencies.each { configurationName, deps ->
                     deps.each { dep ->
