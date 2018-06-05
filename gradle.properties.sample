@@ -1,5 +1,4 @@
 org.gradle.parallel=true
-org.gradle.parallel.intra=true
 org.gradle.configureondemand=true
 org.gradle.jvmargs=-Xmx2500m -Xverify:none -XX:+HeapDumpOnOutOfMemoryError
 org.gradle.workers.max=3
