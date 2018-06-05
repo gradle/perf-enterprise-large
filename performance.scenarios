@@ -3,14 +3,22 @@ upToDateAssemble {
 	gradle-args = ["-PuseFileRepo=true"]
 }
 
-nonAbiChange {
-	tasks = ["assemble"]
+nonAbiChange = ${upToDateAssemble} {
 	apply-non-abi-change-to = "project_2dd5771b/src/main/java/com/enterprise/large/project_2dd5771b/package1/Production_project_2dd5771b_1.java"
-	gradle-args = ["-PuseFileRepo=true"]
 }
 
-abiChange {
-	tasks = ["assemble"]
+abiChange = ${upToDateAssemble} {
 	apply-abi-change-to = "project_2dd5771b/src/main/java/com/enterprise/large/project_2dd5771b/package1/Production_project_2dd5771b_1.java"
+}
+
+help {
+	tasks = ["help"]
 	gradle-args = ["-PuseFileRepo=true"]
+	warm-ups = 10
+}
+
+eagerHelp {
+	tasks = ["help"]
+	gradle-args = ["-PuseFileRepo=true", "-Dorg.gradle.internal.tasks.eager=true"]
+	warm-ups = 10
 }
