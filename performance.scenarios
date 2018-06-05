@@ -14,11 +14,11 @@ abiChange = ${upToDateAssemble} {
 help {
 	tasks = ["help"]
 	gradle-args = ["-PuseFileRepo=true"]
-	warm-ups = 10
+	warm-ups = 20
 }
 
 eagerHelp {
 	tasks = ["help"]
 	gradle-args = ["-PuseFileRepo=true", "-Dorg.gradle.internal.tasks.eager=true"]
-	warm-ups = 10
+	warm-ups = 20
 }
